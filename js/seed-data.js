@@ -42,7 +42,7 @@ var HOP_SEED = {
       title: 'Glow Ritual',
       instagramUrl: 'https://www.instagram.com/reel/PLACEHOLDER4/',
       thumbnailUrl: '',
-      orientation: 'vertical',
+      orientation: 'square',
       order: 0,
     },
     {
@@ -78,7 +78,7 @@ var HOP_SEED = {
       title: 'Admissions Open 2026',
       instagramUrl: 'https://www.instagram.com/reel/PLACEHOLDER8/',
       thumbnailUrl: '',
-      orientation: 'vertical',
+      orientation: 'portrait',
       order: 0,
     },
     {
@@ -87,7 +87,7 @@ var HOP_SEED = {
       title: 'Campus Diaries',
       instagramUrl: 'https://www.instagram.com/reel/PLACEHOLDER9/',
       thumbnailUrl: '',
-      orientation: 'horizontal',
+      orientation: 'landscape',
       order: 1,
     },
   ],

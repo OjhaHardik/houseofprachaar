@@ -1,6 +1,14 @@
 ;(function () {
   var AUTH_KEY = 'hop_admin_auth'
 
+  var ORIENTATION_LABELS = {
+    vertical: 'Vertical (9:16)',
+    square: 'Square (1:1)',
+    portrait: 'Portrait (3:4)',
+    horizontal: 'Horizontal (16:9)',
+    landscape: 'Landscape (4:3)',
+  }
+
   var gateEl = document.getElementById('gate')
   var gateForm = document.getElementById('gateForm')
   var gateInput = document.getElementById('gateInput')
@@ -271,7 +279,7 @@
       categoryId: reelCategoryInput.value,
       instagramUrl: reelUrlInput.value.trim(),
       thumbnailUrl: reelThumbInput.value.trim(),
-      orientation: reelOrientationInput.value === 'horizontal' ? 'horizontal' : 'vertical',
+      orientation: reelOrientationInput.value,
     }
     if (!payload.title || !payload.categoryId || !payload.instagramUrl) return
 
@@ -323,7 +331,7 @@
       var meta = document.createElement('span')
       meta.className = 'admin-reel-row__meta'
       var categoryName = categoryById[reel.categoryId] ? categoryById[reel.categoryId].name : 'Uncategorized'
-      var orientationLabel = reel.orientation === 'horizontal' ? 'Horizontal' : 'Vertical'
+      var orientationLabel = ORIENTATION_LABELS[reel.orientation] || ORIENTATION_LABELS.vertical
       meta.textContent = categoryName + ' · ' + orientationLabel
       info.appendChild(title)
       info.appendChild(meta)
@@ -345,7 +353,7 @@
         reelThumbFileInput.value = ''
         updateThumbPreview(reel.thumbnailUrl)
         setThumbStatus('')
-        reelOrientationInput.value = reel.orientation === 'horizontal' ? 'horizontal' : 'vertical'
+        reelOrientationInput.value = ORIENTATION_LABELS[reel.orientation] ? reel.orientation : 'vertical'
         reelSubmitBtn.textContent = 'Save changes'
         reelForm.hidden = false
       })

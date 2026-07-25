@@ -2,6 +2,11 @@ var HopStore = (function () {
   var STORAGE_KEY = 'hop_data'
   var PASSCODE_KEY = 'hop_admin_passcode'
   var DEFAULT_PASSCODE = 'prachar2026'
+  var VALID_ORIENTATIONS = ['vertical', 'square', 'portrait', 'horizontal', 'landscape']
+
+  function normalizeOrientation(value) {
+    return VALID_ORIENTATIONS.indexOf(value) !== -1 ? value : 'vertical'
+  }
 
   var listeners = []
 
@@ -29,7 +34,7 @@ var HopStore = (function () {
       if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.reels)) throw new Error('bad shape')
       // Backfill fields added after some browsers already had data saved.
       parsed.reels.forEach(function (r) {
-        if (r.orientation !== 'horizontal') r.orientation = 'vertical'
+        r.orientation = normalizeOrientation(r.orientation)
       })
       return parsed
     } catch (e) {
@@ -136,7 +141,7 @@ var HopStore = (function () {
       title: input.title,
       instagramUrl: input.instagramUrl,
       thumbnailUrl: input.thumbnailUrl || '',
-      orientation: input.orientation === 'horizontal' ? 'horizontal' : 'vertical',
+      orientation: normalizeOrientation(input.orientation),
       order: countInCategory,
     }
     data.reels.push(reel)
@@ -152,6 +157,9 @@ var HopStore = (function () {
     if (!reel) return
     for (var key in patch) {
       if (Object.prototype.hasOwnProperty.call(patch, key)) reel[key] = patch[key]
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'orientation')) {
+      reel.orientation = normalizeOrientation(reel.orientation)
     }
     write(data)
   }

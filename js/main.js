@@ -176,10 +176,11 @@
       gridEl.appendChild(empty)
       return
     }
+    var ORIENTATION_CLASSES = { square: 1, portrait: 1, horizontal: 1, landscape: 1 }
     reels.forEach(function (reel) {
       var card = document.createElement('button')
       card.type = 'button'
-      card.className = 'reel-card' + (reel.orientation === 'horizontal' ? ' reel-card--horizontal' : '')
+      card.className = 'reel-card' + (ORIENTATION_CLASSES[reel.orientation] ? ' reel-card--' + reel.orientation : '')
       card.setAttribute('aria-label', 'Watch reel: ' + reel.title + ' on Instagram')
       card.innerHTML = reelCardMarkup(reel)
       card.addEventListener('click', function () {

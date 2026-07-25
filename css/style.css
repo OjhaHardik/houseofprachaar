@@ -457,18 +457,25 @@ a {
   font-weight: 600;
 }
 
-/* ---------- Reel grid ---------- */
+/* ---------- Reel grid ----------
+   Flexbox (not CSS grid) is deliberate: with fixed-width flex items and
+   `justify-content: center`, an incomplete last row centers itself
+   automatically — 2 cards sit centered as a pair instead of pinned to the
+   left with a dead empty column, and it works the same at any card count. */
 
 .reel-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  align-items: start;
-  gap: 28px;
+  --reel-cols: 3;
+  --reel-gap: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--reel-gap);
   padding: 40px 0 80px;
 }
 
 .reel-grid__empty {
-  grid-column: 1 / -1;
+  width: 100%;
   padding: 100px 0;
   text-align: center;
   color: var(--hop-white-300);
@@ -476,21 +483,22 @@ a {
 
 @media (max-width: 900px) {
   .reel-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
+    --reel-cols: 2;
+    --reel-gap: 18px;
   }
 }
 
 @media (max-width: 560px) {
   .reel-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    --reel-cols: 1;
+    --reel-gap: 16px;
   }
 }
 
 .reel-card {
   display: block;
-  width: 100%;
+  flex: 0 0 calc((100% - (var(--reel-cols) - 1) * var(--reel-gap)) / var(--reel-cols));
+  min-width: 0;
   padding: 0;
   border: none;
   background: none;
@@ -513,17 +521,33 @@ a {
   transition: border-color 0.25s var(--hop-ease), transform 0.25s var(--hop-ease);
 }
 
+.reel-card--square .reel-card__thumb {
+  aspect-ratio: 1 / 1;
+}
+
+.reel-card--portrait .reel-card__thumb {
+  aspect-ratio: 3 / 4;
+}
+
 .reel-card--horizontal .reel-card__thumb {
   aspect-ratio: 16 / 9;
 }
 
-.reel-card--horizontal {
-  grid-column: span 2;
+.reel-card--landscape .reel-card__thumb {
+  aspect-ratio: 4 / 3;
+}
+
+/* Wider-than-tall formats get double width so they read at a comparable
+   height to their portrait/square neighbors in the same row. */
+.reel-card--horizontal,
+.reel-card--landscape {
+  flex-basis: calc((100% - (var(--reel-cols) - 1) * var(--reel-gap)) / var(--reel-cols) * 2 + var(--reel-gap));
 }
 
 @media (max-width: 560px) {
-  .reel-card--horizontal {
-    grid-column: span 1;
+  .reel-card--horizontal,
+  .reel-card--landscape {
+    flex-basis: 100%;
   }
 }
 
