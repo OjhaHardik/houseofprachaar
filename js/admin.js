@@ -8,6 +8,33 @@
     portrait: 'Portrait (4:5)',
   }
 
+  // Reels and Posts are edited through the same form, but with a different
+  // field set: Reels need a real Instagram link (the whole point is linking
+  // out to the video); Posts are upload-first showcase images and don't
+  // require one. Which orientations are offered is scoped per section too.
+  var SECTION_CONFIG = {
+    reel: {
+      orientations: ['vertical', 'horizontal'],
+      urlLabel: 'Instagram reel URL',
+      urlPlaceholder: 'https://www.instagram.com/reel/...',
+      urlRequired: true,
+      thumbLabel: 'Thumbnail image (optional — leave blank for a generated placeholder)',
+      thumbRequired: false,
+      hint: 'Reels link out to a real Instagram reel when clicked.',
+      addLabel: 'Add reel',
+    },
+    post: {
+      orientations: ['square', 'portrait'],
+      urlLabel: 'Instagram post URL (optional)',
+      urlPlaceholder: 'https://www.instagram.com/p/... (optional)',
+      urlRequired: false,
+      thumbLabel: 'Image (required)',
+      thumbRequired: true,
+      hint: 'Posts are upload-first — the image is what shows in the grid. Linking to Instagram is optional.',
+      addLabel: 'Add post',
+    },
+  }
+
   var gateEl = document.getElementById('gate')
   var gateForm = document.getElementById('gateForm')
   var gateInput = document.getElementById('gateInput')
@@ -23,11 +50,16 @@
 
   var reelFilter = document.getElementById('reelFilter')
   var newReelBtn = document.getElementById('newReelBtn')
+  var newPostBtn = document.getElementById('newPostBtn')
   var reelForm = document.getElementById('reelForm')
   var reelEditingId = document.getElementById('reelEditingId')
+  var reelFormSection = document.getElementById('reelFormSection')
+  var reelFormHint = document.getElementById('reelFormHint')
   var reelTitleInput = document.getElementById('reelTitleInput')
   var reelCategoryInput = document.getElementById('reelCategoryInput')
+  var reelUrlLabel = document.getElementById('reelUrlLabel')
   var reelUrlInput = document.getElementById('reelUrlInput')
+  var reelThumbLabel = document.getElementById('reelThumbLabel')
   var reelThumbInput = document.getElementById('reelThumbInput')
   var reelThumbFileInput = document.getElementById('reelThumbFileInput')
   var reelThumbPreview = document.getElementById('reelThumbPreview')
@@ -288,7 +320,31 @@
     setThumbStatus('')
   })
 
-  function resetReelForm() {
+  // Rebuilds the orientation dropdown and field labels/requiredness for
+  // whichever section (reel/post) the form is currently open for.
+  function applyFormSection(section) {
+    var config = SECTION_CONFIG[section]
+    reelFormSection.value = section
+
+    reelOrientationInput.innerHTML = ''
+    config.orientations.forEach(function (o) {
+      var opt = document.createElement('option')
+      opt.value = o
+      opt.textContent = ORIENTATION_LABELS[o]
+      reelOrientationInput.appendChild(opt)
+    })
+
+    reelUrlLabel.textContent = config.urlLabel
+    reelUrlInput.placeholder = config.urlPlaceholder
+    reelUrlInput.required = config.urlRequired
+
+    reelThumbLabel.textContent = config.thumbLabel
+
+    reelFormHint.textContent = config.hint
+    reelSubmitBtn.textContent = config.addLabel
+  }
+
+  function resetReelForm(section) {
     reelEditingId.value = ''
     reelTitleInput.value = ''
     reelUrlInput.value = ''
@@ -296,18 +352,25 @@
     reelThumbFileInput.value = ''
     updateThumbPreview('')
     setThumbStatus('')
-    reelOrientationInput.value = 'vertical'
+    applyFormSection(section)
     if (reelFilter.value !== 'all') reelCategoryInput.value = reelFilter.value
-    reelSubmitBtn.textContent = 'Add reel'
+  }
+
+  function openNewItemForm(section) {
+    if (HopStore.getCategories().length === 0) {
+      alert('Add a category first before adding reels or posts.')
+      return
+    }
+    resetReelForm(section)
+    reelForm.hidden = false
   }
 
   newReelBtn.addEventListener('click', function () {
-    if (HopStore.getCategories().length === 0) {
-      alert('Add a category first before adding reels.')
-      return
-    }
-    resetReelForm()
-    reelForm.hidden = false
+    openNewItemForm('reel')
+  })
+
+  newPostBtn.addEventListener('click', function () {
+    openNewItemForm('post')
   })
 
   reelCancelBtn.addEventListener('click', function () {
@@ -318,6 +381,7 @@
 
   reelForm.addEventListener('submit', function (e) {
     e.preventDefault()
+    var config = SECTION_CONFIG[reelFormSection.value] || SECTION_CONFIG.reel
     var payload = {
       title: reelTitleInput.value.trim(),
       categoryId: reelCategoryInput.value,
@@ -325,7 +389,12 @@
       thumbnailUrl: reelThumbInput.value.trim(),
       orientation: reelOrientationInput.value,
     }
-    if (!payload.title || !payload.categoryId || !payload.instagramUrl) return
+    if (!payload.title || !payload.categoryId) return
+    if (config.urlRequired && !payload.instagramUrl) return
+    if (config.thumbRequired && !payload.thumbnailUrl) {
+      setThumbStatus('An image is required for posts.')
+      return
+    }
 
     if (reelEditingId.value) {
       HopStore.updateReel(reelEditingId.value, payload)
@@ -336,6 +405,8 @@
   })
 
   function openReelEditForm(reel) {
+    var section = HopUtils.sectionOf(reel.orientation)
+    applyFormSection(section)
     reelEditingId.value = reel.id
     reelTitleInput.value = reel.title
     reelCategoryInput.value = reel.categoryId
@@ -344,7 +415,7 @@
     reelThumbFileInput.value = ''
     updateThumbPreview(reel.thumbnailUrl)
     setThumbStatus('')
-    reelOrientationInput.value = ORIENTATION_LABELS[reel.orientation] ? reel.orientation : 'vertical'
+    reelOrientationInput.value = ORIENTATION_LABELS[reel.orientation] ? reel.orientation : section === 'post' ? 'square' : 'vertical'
     reelSubmitBtn.textContent = 'Save changes'
     reelForm.hidden = false
   }

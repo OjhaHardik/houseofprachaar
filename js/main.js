@@ -193,7 +193,9 @@
     })
   }
 
-  function reelCardMarkup(reel) {
+  // Posts are static showcase images, not playable clips, so they skip the
+  // play-icon affordance reels get.
+  function reelCardMarkup(reel, isReel) {
     var hasImage = Boolean(reel.thumbnailUrl)
     var bg = hasImage
       ? 'background-image:url(' + JSON.stringify(reel.thumbnailUrl).slice(1, -1) + ')'
@@ -202,9 +204,11 @@
       '<div class="reel-card__thumb" style="' + bg + '">' +
       '<div class="reel-card__scrim"></div>' +
       '<span class="reel-card__title">' + HopUtils.escapeHtml(reel.title) + '</span>' +
-      '<span class="reel-card__play" aria-hidden="true">' +
-      '<svg width="20" height="22" viewBox="0 0 20 22" fill="none"><path d="M1 1.5L18.5 11L1 20.5V1.5Z" fill="currentColor"/></svg>' +
-      '</span>' +
+      (isReel
+        ? '<span class="reel-card__play" aria-hidden="true">' +
+          '<svg width="20" height="22" viewBox="0 0 20 22" fill="none"><path d="M1 1.5L18.5 11L1 20.5V1.5Z" fill="currentColor"/></svg>' +
+          '</span>'
+        : '') +
       '</div>'
     )
   }
@@ -214,14 +218,19 @@
   function renderGrid(gridEl, reels) {
     gridEl.innerHTML = ''
     reels.forEach(function (reel) {
+      var isReel = HopUtils.sectionOf(reel.orientation) === 'reel'
       var card = document.createElement('button')
       card.type = 'button'
       card.className = 'reel-card' + (ORIENTATION_CLASSES[reel.orientation] ? ' reel-card--' + reel.orientation : '')
-      card.setAttribute('aria-label', 'Watch reel: ' + reel.title + ' on Instagram')
-      card.innerHTML = reelCardMarkup(reel)
-      card.addEventListener('click', function () {
-        window.open(reel.instagramUrl, '_blank', 'noopener,noreferrer')
-      })
+      card.setAttribute('aria-label', (isReel ? 'Watch reel: ' : 'View post: ') + reel.title + (reel.instagramUrl ? ' on Instagram' : ''))
+      card.innerHTML = reelCardMarkup(reel, isReel)
+      if (reel.instagramUrl) {
+        card.addEventListener('click', function () {
+          window.open(reel.instagramUrl, '_blank', 'noopener,noreferrer')
+        })
+      } else {
+        card.classList.add('reel-card--static')
+      }
       gridEl.appendChild(card)
     })
   }

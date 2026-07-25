@@ -66,7 +66,8 @@
             <select id="reelFilter" class="admin-input">
               <option value="all">All categories</option>
             </select>
-            <button id="newReelBtn" class="admin-btn" type="button">+ New</button>
+            <button id="newReelBtn" class="admin-btn" type="button">+ New Reel</button>
+            <button id="newPostBtn" class="admin-btn" type="button">+ New Post</button>
           </div>
         </div>
 
@@ -79,6 +80,8 @@
 
         <form id="reelForm" class="admin-form" hidden>
           <input type="hidden" id="reelEditingId" value="" />
+          <input type="hidden" id="reelFormSection" value="reel" />
+          <p id="reelFormHint" class="admin-panel__hint"></p>
           <label class="admin-field">
             <span>Title</span>
             <input id="reelTitleInput" class="admin-input" placeholder="e.g. Zafrani Chicken Biryani" required />
@@ -88,11 +91,11 @@
             <select id="reelCategoryInput" class="admin-input"></select>
           </label>
           <label class="admin-field">
-            <span>Instagram reel URL</span>
-            <input id="reelUrlInput" class="admin-input" placeholder="https://www.instagram.com/reel/..." required />
+            <span id="reelUrlLabel">Instagram reel URL</span>
+            <input id="reelUrlInput" class="admin-input" placeholder="https://www.instagram.com/reel/..." />
           </label>
           <label class="admin-field">
-            <span>Thumbnail image (optional — leave blank for a generated placeholder)</span>
+            <span id="reelThumbLabel">Thumbnail image (optional — leave blank for a generated placeholder)</span>
             <div class="admin-thumb-upload">
               <img id="reelThumbPreview" class="admin-thumb-upload__preview" hidden alt="Thumbnail preview" />
               <div class="admin-thumb-upload__controls">
@@ -108,16 +111,7 @@
           </label>
           <label class="admin-field">
             <span>Grid orientation</span>
-            <select id="reelOrientationInput" class="admin-input">
-              <optgroup label="Reel">
-                <option value="vertical">Vertical (9:16)</option>
-                <option value="horizontal">Horizontal (16:9, spans 2 columns)</option>
-              </optgroup>
-              <optgroup label="Post">
-                <option value="square">Square (1:1)</option>
-                <option value="portrait">Portrait (4:5)</option>
-              </optgroup>
-            </select>
+            <select id="reelOrientationInput" class="admin-input"></select>
           </label>
           <div class="admin-panel__row">
             <button type="submit" id="reelSubmitBtn" class="admin-btn">Add reel</button>
