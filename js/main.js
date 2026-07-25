@@ -240,8 +240,11 @@
   }
 
   // Left sidebar on desktop, horizontal pill row on mobile — same two
-  // buttons, driving which single grid (Reels or Posts) is showing.
-  function renderSubnav(counts) {
+  // buttons, driving which single grid (Reels or Posts) is showing. Both
+  // tabs always stay clickable, even at zero items — an empty tab shows an
+  // honest "nothing here yet" message instead of being disabled, which read
+  // as broken (grayed out, "not-allowed" cursor) rather than just empty.
+  function renderSubnav() {
     function buildItem(section, tag) {
       var item = document.createElement('button')
       item.type = 'button'
@@ -249,10 +252,9 @@
       item.className = tag + (section.id === activeSection ? ' ' + tag + '--active' : '')
       item.textContent = section.label
       item.setAttribute('aria-selected', section.id === activeSection ? 'true' : 'false')
-      item.disabled = counts[section.id] === 0
       item.addEventListener('click', function () {
         activeSection = section.id
-        renderContent()
+        renderContent(false)
       })
       return item
     }
@@ -265,25 +267,31 @@
     })
   }
 
-  function renderContent() {
+  // allowAutoSwitch is true only when arriving at a category fresh (initial
+  // load, or switching top-level category) — it steers you to a tab that
+  // has content instead of landing on an empty one. A deliberate click on
+  // the other tab (allowAutoSwitch = false) always honors that choice, even
+  // if it's empty.
+  function renderContent(allowAutoSwitch) {
     var items = getReels(activeCategoryId)
     var counts = {
       reel: items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'reel' }).length,
       post: items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'post' }).length,
     }
 
-    // Prefer a section that actually has content instead of landing on an
-    // empty tab when categories switch.
-    if (counts[activeSection] === 0 && counts[activeSection === 'reel' ? 'post' : 'reel'] > 0) {
+    if (allowAutoSwitch && counts[activeSection] === 0 && counts[activeSection === 'reel' ? 'post' : 'reel'] > 0) {
       activeSection = activeSection === 'reel' ? 'post' : 'reel'
     }
 
-    renderSubnav(counts)
+    renderSubnav()
 
     var visible = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === activeSection })
-    categoryEmpty.hidden = items.length !== 0
-    categoryEmpty.textContent = 'No reels or posts in this category yet.'
-    gridEl.hidden = items.length === 0
+    var sectionLabel = activeSection === 'reel' ? 'reels' : 'posts'
+    categoryEmpty.hidden = visible.length !== 0
+    categoryEmpty.textContent = items.length === 0
+      ? 'No reels or posts in this category yet.'
+      : 'No ' + sectionLabel + ' in this category yet.'
+    gridEl.hidden = visible.length === 0
     renderGrid(gridEl, visible)
   }
 
@@ -298,7 +306,7 @@
       categoryEmpty.textContent = 'No categories yet — add one from the dashboard.'
       return
     }
-    renderContent()
+    renderContent(true)
   }
 
   window.addEventListener('resize', function () {
