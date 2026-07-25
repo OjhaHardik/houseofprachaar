@@ -118,17 +118,65 @@
         <ul id="reelList" class="admin-reel-list"></ul>
       </section>
 
+      <!-- Publish -->
+      <section class="admin-panel">
+        <h2 class="admin-panel__title">Publish</h2>
+        <p class="admin-panel__hint">
+          Publishing writes your changes straight to the GitHub repo behind this site — GitHub Pages
+          rebuilds automatically, so they're live on <strong>houseofprachar.com</strong> for everyone
+          within about a minute.
+        </p>
+
+        <div class="admin-panel__row">
+          <input
+            id="githubTokenInput"
+            type="password"
+            class="admin-input"
+            placeholder="GitHub personal access token"
+            autocomplete="off"
+          />
+          <button id="saveTokenBtn" class="admin-btn admin-btn--ghost" type="button">Save token</button>
+          <button id="forgetTokenBtn" class="admin-btn admin-btn--ghost" type="button" hidden>
+            Forget token
+          </button>
+        </div>
+        <p id="tokenStatus" class="admin-panel__hint"></p>
+
+        <details class="admin-details">
+          <summary>How do I get a token?</summary>
+          <ol class="admin-details__steps">
+            <li>
+              Open
+              <a
+                href="https://github.com/settings/personal-access-tokens/new"
+                target="_blank"
+                rel="noreferrer noopener"
+                >github.com/settings/personal-access-tokens/new</a
+              >
+            </li>
+            <li>Under "Repository access", choose "Only select repositories" → pick <code>houseofprachaar</code></li>
+            <li>Under "Permissions" → "Repository permissions", set <strong>Contents</strong> to <strong>Read and write</strong></li>
+            <li>Generate the token and paste it above — GitHub only shows it once</li>
+          </ol>
+        </details>
+
+        <div class="admin-panel__row admin-panel__row--publish">
+          <button id="publishBtn" class="admin-btn" type="button">Publish to GitHub</button>
+        </div>
+        <span id="publishMessage" class="admin-panel__saved" hidden></span>
+      </section>
+
       <!-- Data tools -->
       <section class="admin-panel">
         <h2 class="admin-panel__title">Data</h2>
         <p class="admin-panel__hint">
-          This site is static — the dashboard saves to your browser only. To publish changes for every
-          visitor: <strong>Export JSON</strong>, then update the <code>HOP_SEED</code> object in
-          <code>js/seed-data.js</code> with the downloaded content, then commit &amp; push (or re-upload the
-          file to your host).
+          Your edits above are saved to this browser as a draft until you click <strong>Publish</strong>.
+          These are backup/advanced tools: sync this draft with what's currently live, or export/import a
+          full backup file.
         </p>
         <div class="admin-panel__row">
-          <button id="exportBtn" class="admin-btn" type="button">Export JSON</button>
+          <button id="pullBtn" class="admin-btn admin-btn--ghost" type="button">Load current live data</button>
+          <button id="exportBtn" class="admin-btn admin-btn--ghost" type="button">Export JSON</button>
           <button id="importBtn" class="admin-btn admin-btn--ghost" type="button">Import JSON</button>
           <input id="importFile" type="file" accept="application/json" class="visually-hidden" />
           <button id="resetBtn" class="admin-btn admin-btn--ghost" type="button">Reset to seed</button>
@@ -155,6 +203,7 @@
   <script src="js/seed-data.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/github-publish.js"></script>
   <script src="js/admin.js"></script>
 </body>
 

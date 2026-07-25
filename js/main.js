@@ -1,5 +1,6 @@
 ;(function () {
   var ENTERED_KEY = 'hop_entered'
+  var DATA_URL = 'data.json'
 
   var heroEl = document.getElementById('hero')
   var portfolioEl = document.getElementById('portfolio')
@@ -16,6 +17,43 @@
 
   yearLabel.textContent = '© ' + new Date().getFullYear() + ' House of Prachar'
 
+  // ---------- Published data ----------
+  // Every visitor fetches the same data.json — the file the dashboard's
+  // "Publish" button writes to the repo — instead of reading localStorage,
+  // so everyone always sees the same content (no per-browser drift).
+
+  var siteData = { categories: [], reels: [] }
+
+  var dataReady = fetch(DATA_URL + '?_=' + Date.now(), { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('data.json request failed: ' + res.status)
+      return res.json()
+    })
+    .catch(function () {
+      return HOP_SEED // offline, file://, or data.json missing — fall back to the bundled default
+    })
+    .then(function (data) {
+      siteData.categories = Array.isArray(data.categories) ? data.categories : []
+      siteData.reels = Array.isArray(data.reels) ? data.reels : []
+      return siteData
+    })
+
+  function getCategories() {
+    return siteData.categories.slice().sort(function (a, b) {
+      return a.order - b.order
+    })
+  }
+
+  function getReels(categoryId) {
+    return siteData.reels
+      .filter(function (r) {
+        return r.categoryId === categoryId
+      })
+      .sort(function (a, b) {
+        return a.order - b.order
+      })
+  }
+
   // ---------- Hero ----------
 
   function enterPortfolio(skipAnimation) {
@@ -24,14 +62,14 @@
     if (skipAnimation) {
       heroEl.hidden = true
       portfolioEl.hidden = false
-      renderAll()
+      dataReady.then(renderAll)
       return
     }
     heroEl.classList.add('hero--leaving')
     window.setTimeout(function () {
       heroEl.hidden = true
       portfolioEl.hidden = false
-      renderAll()
+      dataReady.then(renderAll)
     }, 700)
   }
 
@@ -191,7 +229,7 @@
   }
 
   function renderAll() {
-    var categories = HopStore.getCategories()
+    var categories = getCategories()
     renderTabs(categories)
     if (categories.length === 0) {
       gridEl.innerHTML = ''
@@ -201,16 +239,12 @@
       gridEl.appendChild(msg)
       return
     }
-    renderGrid(HopStore.getReels(activeCategoryId))
+    renderGrid(getReels(activeCategoryId))
   }
 
-  HopStore.subscribe(function () {
-    if (!portfolioEl.hidden) renderAll()
-  })
-
   window.addEventListener('resize', function () {
-    if (!portfolioEl.hidden) renderTabs(HopStore.getCategories())
+    if (!portfolioEl.hidden) renderTabs(getCategories())
   })
 
-  if (!portfolioEl.hidden) renderAll()
+  if (!portfolioEl.hidden) dataReady.then(renderAll)
 })()

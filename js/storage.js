@@ -42,6 +42,29 @@ var HopStore = (function () {
     }
   }
 
+  function hasLocalData() {
+    return localStorage.getItem(STORAGE_KEY) !== null
+  }
+
+  // Fetches the currently-published data.json (the file "Publish" writes to
+  // the repo) and overwrites the local draft with it — used to start a fresh
+  // admin session from what's actually live, or to discard local edits and
+  // resync with the published version.
+  function loadFromPublished() {
+    return fetch('data.json?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('data.json request failed: ' + res.status)
+        return res.json()
+      })
+      .then(function (data) {
+        if (!Array.isArray(data.categories) || !Array.isArray(data.reels)) {
+          throw new Error('data.json has an unexpected shape')
+        }
+        write(data)
+        return data
+      })
+  }
+
   function write(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     notify()
@@ -235,6 +258,8 @@ var HopStore = (function () {
     downloadJson: downloadJson,
     importJson: importJson,
     resetToSeed: resetToSeed,
+    hasLocalData: hasLocalData,
+    loadFromPublished: loadFromPublished,
     checkPasscode: checkPasscode,
     setPasscode: setPasscode,
     getPasscodeHint: getPasscodeHint,

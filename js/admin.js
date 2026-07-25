@@ -39,11 +39,19 @@
   var reelCancelBtn = document.getElementById('reelCancelBtn')
   var reelList = document.getElementById('reelList')
 
+  var pullBtn = document.getElementById('pullBtn')
   var exportBtn = document.getElementById('exportBtn')
   var importBtn = document.getElementById('importBtn')
   var importFile = document.getElementById('importFile')
   var resetBtn = document.getElementById('resetBtn')
   var dataMessage = document.getElementById('dataMessage')
+
+  var githubTokenInput = document.getElementById('githubTokenInput')
+  var saveTokenBtn = document.getElementById('saveTokenBtn')
+  var forgetTokenBtn = document.getElementById('forgetTokenBtn')
+  var tokenStatus = document.getElementById('tokenStatus')
+  var publishBtn = document.getElementById('publishBtn')
+  var publishMessage = document.getElementById('publishMessage')
 
   var newPasscodeInput = document.getElementById('newPasscodeInput')
   var savePasscodeBtn = document.getElementById('savePasscodeBtn')
@@ -54,7 +62,15 @@
   function showAdmin() {
     gateEl.hidden = true
     adminEl.hidden = false
-    renderAll()
+    // First-ever visit to this browser's dashboard: start the draft from
+    // what's actually live instead of the code's bundled placeholder seed.
+    if (!HopStore.hasLocalData()) {
+      HopStore.loadFromPublished()
+        .catch(function () {})
+        .then(renderAll)
+    } else {
+      renderAll()
+    }
   }
 
   function showGate() {
@@ -406,10 +422,76 @@
     }
   })
 
+  pullBtn.addEventListener('click', function () {
+    if (!confirm('Load the currently live data? This overwrites your local draft with what\'s published.')) return
+    HopStore.loadFromPublished()
+      .then(function () {
+        showDataMessage('Loaded the current live data into your draft.')
+      })
+      .catch(function (err) {
+        showDataMessage('Couldn\'t load live data: ' + err.message)
+      })
+  })
+
   function showDataMessage(text) {
     dataMessage.textContent = text
     dataMessage.hidden = false
   }
+
+  // ---------- Publish to GitHub ----------
+
+  function renderTokenStatus() {
+    if (HopPublish.hasToken()) {
+      tokenStatus.textContent = 'A token is saved in this browser.'
+      forgetTokenBtn.hidden = false
+    } else {
+      tokenStatus.textContent = 'No token saved yet — publishing is disabled until you add one.'
+      forgetTokenBtn.hidden = true
+    }
+  }
+
+  renderTokenStatus()
+
+  saveTokenBtn.addEventListener('click', function () {
+    var value = githubTokenInput.value.trim()
+    if (!value) return
+    HopPublish.setToken(value)
+    githubTokenInput.value = ''
+    renderTokenStatus()
+  })
+
+  forgetTokenBtn.addEventListener('click', function () {
+    HopPublish.setToken('')
+    renderTokenStatus()
+  })
+
+  function showPublishMessage(text) {
+    publishMessage.textContent = text
+    publishMessage.hidden = false
+  }
+
+  publishBtn.addEventListener('click', function () {
+    if (!HopPublish.hasToken()) {
+      showPublishMessage('Add a GitHub token above first.')
+      return
+    }
+    publishBtn.disabled = true
+    publishBtn.textContent = 'Publishing…'
+    showPublishMessage('')
+    publishMessage.hidden = true
+
+    HopPublish.publish(HopStore.exportJson(), 'Publish content update from dashboard')
+      .then(function () {
+        showPublishMessage('Published! Live on houseofprachar.com within about a minute.')
+      })
+      .catch(function (err) {
+        showPublishMessage('Publish failed: ' + err.message)
+      })
+      .then(function () {
+        publishBtn.disabled = false
+        publishBtn.textContent = 'Publish to GitHub'
+      })
+  })
 
   // ---------- Passcode settings ----------
 
