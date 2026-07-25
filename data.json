@@ -1,9 +1,29 @@
 {
   "categories": [
-    { "id": "cat-restaurant", "name": "Restaurant", "slug": "restaurant", "order": 0 },
-    { "id": "cat-beauty", "name": "Beauty", "slug": "beauty", "order": 1 },
-    { "id": "cat-healthcare", "name": "Healthcare", "slug": "healthcare", "order": 2 },
-    { "id": "cat-education", "name": "Education", "slug": "education", "order": 3 }
+    {
+      "id": "cat-restaurant",
+      "name": "Restaurant",
+      "slug": "restaurant",
+      "order": 0
+    },
+    {
+      "id": "cat-beauty",
+      "name": "Beauty",
+      "slug": "beauty",
+      "order": 1
+    },
+    {
+      "id": "cat-healthcare",
+      "name": "Healthcare",
+      "slug": "healthcare",
+      "order": 2
+    },
+    {
+      "id": "cat-education",
+      "name": "Education",
+      "slug": "education",
+      "order": 3
+    }
   ],
   "reels": [
     {
