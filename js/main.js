@@ -10,14 +10,18 @@
   var mobileNavToggle = document.getElementById('mobileNavToggle')
   var mobileNavLabel = document.getElementById('mobileNavLabel')
   var mobileNavPanel = document.getElementById('mobileNavPanel')
+  var subnav = document.getElementById('subnav')
+  var subnavMobile = document.getElementById('subnavMobile')
   var categoryEmpty = document.getElementById('categoryEmpty')
-  var reelsSection = document.getElementById('reelsSection')
-  var reelsGrid = document.getElementById('reelsGrid')
-  var postsSection = document.getElementById('postsSection')
-  var postsGrid = document.getElementById('postsGrid')
+  var gridEl = document.getElementById('grid')
   var yearLabel = document.getElementById('yearLabel')
 
   var activeCategoryId = null
+  var activeSection = 'reel'
+  var SECTIONS = [
+    { id: 'reel', label: 'Reels' },
+    { id: 'post', label: 'Posts' },
+  ]
 
   yearLabel.textContent = '© ' + new Date().getFullYear() + ' House of Prachar'
 
@@ -235,28 +239,66 @@
     })
   }
 
+  // Left sidebar on desktop, horizontal pill row on mobile — same two
+  // buttons, driving which single grid (Reels or Posts) is showing.
+  function renderSubnav(counts) {
+    function buildItem(section, tag) {
+      var item = document.createElement('button')
+      item.type = 'button'
+      item.setAttribute('role', 'tab')
+      item.className = tag + (section.id === activeSection ? ' ' + tag + '--active' : '')
+      item.textContent = section.label
+      item.setAttribute('aria-selected', section.id === activeSection ? 'true' : 'false')
+      item.disabled = counts[section.id] === 0
+      item.addEventListener('click', function () {
+        activeSection = section.id
+        renderContent()
+      })
+      return item
+    }
+
+    subnav.innerHTML = ''
+    subnavMobile.innerHTML = ''
+    SECTIONS.forEach(function (section) {
+      subnav.appendChild(buildItem(section, 'subnav__item'))
+      subnavMobile.appendChild(buildItem(section, 'subnav-mobile__item'))
+    })
+  }
+
+  function renderContent() {
+    var items = getReels(activeCategoryId)
+    var counts = {
+      reel: items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'reel' }).length,
+      post: items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'post' }).length,
+    }
+
+    // Prefer a section that actually has content instead of landing on an
+    // empty tab when categories switch.
+    if (counts[activeSection] === 0 && counts[activeSection === 'reel' ? 'post' : 'reel'] > 0) {
+      activeSection = activeSection === 'reel' ? 'post' : 'reel'
+    }
+
+    renderSubnav(counts)
+
+    var visible = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === activeSection })
+    categoryEmpty.hidden = items.length !== 0
+    categoryEmpty.textContent = 'No reels or posts in this category yet.'
+    gridEl.hidden = items.length === 0
+    renderGrid(gridEl, visible)
+  }
+
   function renderAll() {
     var categories = getCategories()
     renderTabs(categories)
     if (categories.length === 0) {
-      reelsSection.hidden = true
-      postsSection.hidden = true
+      subnav.innerHTML = ''
+      subnavMobile.innerHTML = ''
+      gridEl.hidden = true
       categoryEmpty.hidden = false
       categoryEmpty.textContent = 'No categories yet — add one from the dashboard.'
       return
     }
-
-    var items = getReels(activeCategoryId)
-    var reelsList = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'reel' })
-    var postsList = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'post' })
-
-    reelsSection.hidden = reelsList.length === 0
-    postsSection.hidden = postsList.length === 0
-    categoryEmpty.hidden = items.length !== 0
-    categoryEmpty.textContent = 'No reels in this category yet.'
-
-    if (reelsList.length) renderGrid(reelsGrid, reelsList)
-    if (postsList.length) renderGrid(postsGrid, postsList)
+    renderContent()
   }
 
   window.addEventListener('resize', function () {

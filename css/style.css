@@ -457,23 +457,100 @@ a {
   font-weight: 600;
 }
 
-/* ---------- Category subsections (Reels / Posts) ---------- */
+/* ---------- Subnav (Reels / Posts) ----------
+   Left sidebar on desktop, matching the reference layout: a fixed 256px
+   column with a 40px gutter before the content, tracked uppercase labels,
+   active = white + red underline, inactive = muted gray. */
 
-.portfolio__section[hidden] {
-  display: none;
+.portfolio__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
 }
 
-.portfolio__section-title {
-  margin: 32px 0 0;
-  font-family: var(--hop-font-display);
-  font-weight: 500;
-  font-size: 15px;
-  letter-spacing: 0.02em;
+.portfolio__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.subnav {
+  flex: 0 0 256px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 40px;
+}
+
+.subnav__item {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0 0 8px;
+  border-bottom: 2px solid transparent;
   color: var(--hop-white-300);
+  font-family: var(--hop-font-body);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  transition: color 0.2s var(--hop-ease), border-color 0.2s var(--hop-ease);
 }
 
-.portfolio__section:first-of-type .portfolio__section-title {
-  margin-top: 24px;
+.subnav__item:hover:not(:disabled) {
+  color: var(--hop-white);
+}
+
+.subnav__item--active {
+  color: var(--hop-white);
+  border-bottom-color: var(--hop-red);
+}
+
+.subnav__item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.subnav-mobile {
+  display: none;
+  gap: 10px;
+  margin: 20px 0 4px;
+}
+
+@media (max-width: 640px) {
+  .portfolio__body {
+    gap: 0;
+  }
+  .subnav {
+    display: none;
+  }
+  .subnav-mobile {
+    display: flex;
+  }
+}
+
+.subnav-mobile__item {
+  background: var(--hop-black-800);
+  border: 1px solid var(--hop-black-700);
+  border-radius: 999px;
+  padding: 8px 18px;
+  color: var(--hop-white-300);
+  font-family: var(--hop-font-body);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: color 0.2s var(--hop-ease), border-color 0.2s var(--hop-ease), background 0.2s var(--hop-ease);
+}
+
+.subnav-mobile__item--active {
+  color: var(--hop-white);
+  border-color: var(--hop-red);
+  background: rgba(212, 44, 61, 0.12);
+}
+
+.subnav-mobile__item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* ---------- Reel grid ----------
@@ -484,13 +561,20 @@ a {
 
 .reel-grid {
   --reel-cols: 3;
-  --reel-gap: 28px;
-  display: flex;
+  --reel-gap: 30px;
+  display: none;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: center;
   gap: var(--reel-gap);
   padding: 40px 0 80px;
+}
+
+/* Author rules setting `display` always beat the UA's default [hidden]
+   rule regardless of specificity, so visibility has to be driven
+   explicitly here rather than relying on the hidden attribute alone. */
+.reel-grid:not([hidden]) {
+  display: flex;
 }
 
 @media (max-width: 900px) {
