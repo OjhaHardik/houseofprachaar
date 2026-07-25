@@ -58,10 +58,25 @@ var HopUtils = (function () {
     })
   }
 
+  // Every category splits into two subsections. Which one an item belongs to
+  // is derived from its orientation rather than stored separately, so the
+  // two can never drift out of sync.
+  var POST_ORIENTATIONS = { square: 1, portrait: 1 }
+
+  function isPostOrientation(orientation) {
+    return Boolean(POST_ORIENTATIONS[orientation])
+  }
+
+  function sectionOf(orientation) {
+    return isPostOrientation(orientation) ? 'post' : 'reel'
+  }
+
   return {
     hashString: hashString,
     placeholderGradient: placeholderGradient,
     escapeHtml: escapeHtml,
     fileToCompressedDataUrl: fileToCompressedDataUrl,
+    isPostOrientation: isPostOrientation,
+    sectionOf: sectionOf,
   }
 })()

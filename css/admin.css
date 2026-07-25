@@ -199,9 +199,50 @@
   padding: 0;
 }
 
+.admin-list__name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-count-badge {
+  flex-shrink: 0;
+  background: var(--hop-black-700);
+  color: var(--hop-white-300);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+
 .admin-list__actions {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
+}
+
+.admin-search {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.admin-reel-group {
+  margin-bottom: 18px;
+}
+
+.admin-reel-group:last-child {
+  margin-bottom: 0;
+}
+
+.admin-reel-group__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hop-white-300);
 }
 
 .admin-icon-btn {

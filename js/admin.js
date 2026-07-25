@@ -3,10 +3,9 @@
 
   var ORIENTATION_LABELS = {
     vertical: 'Vertical (9:16)',
-    square: 'Square (1:1)',
-    portrait: 'Portrait (3:4)',
     horizontal: 'Horizontal (16:9)',
-    landscape: 'Landscape (4:3)',
+    square: 'Square (1:1)',
+    portrait: 'Portrait (4:5)',
   }
 
   var gateEl = document.getElementById('gate')
@@ -37,7 +36,8 @@
   var reelOrientationInput = document.getElementById('reelOrientationInput')
   var reelSubmitBtn = document.getElementById('reelSubmitBtn')
   var reelCancelBtn = document.getElementById('reelCancelBtn')
-  var reelList = document.getElementById('reelList')
+  var reelSearchInput = document.getElementById('reelSearchInput')
+  var reelListWrap = document.getElementById('reelListWrap')
 
   var pullBtn = document.getElementById('pullBtn')
   var exportBtn = document.getElementById('exportBtn')
@@ -110,37 +110,64 @@
 
   // ---------- Categories ----------
 
+  function startRenameCategory(cat, label) {
+    var input = document.createElement('input')
+    input.className = 'admin-input'
+    input.value = cat.name
+    label.parentNode.replaceChild(input, label)
+    input.focus()
+    input.select()
+    var save = function () {
+      if (input.value.trim()) HopStore.renameCategory(cat.id, input.value)
+      else renderCategories()
+    }
+    input.addEventListener('blur', save)
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') input.blur()
+    })
+  }
+
   function renderCategories() {
     var categories = HopStore.getCategories()
+    var allReels = HopStore.getReels()
     categoryList.innerHTML = ''
 
     categories.forEach(function (cat, i) {
       var li = document.createElement('li')
       li.className = 'admin-list__row'
 
+      var count = allReels.filter(function (r) {
+        return r.categoryId === cat.id
+      }).length
+
       var label = document.createElement('button')
       label.type = 'button'
       label.className = 'admin-list__label'
       label.textContent = cat.name
       label.addEventListener('click', function () {
-        var input = document.createElement('input')
-        input.className = 'admin-input'
-        input.value = cat.name
-        li.replaceChild(input, label)
-        input.focus()
-        input.select()
-        var save = function () {
-          if (input.value.trim()) HopStore.renameCategory(cat.id, input.value)
-          else renderCategories()
-        }
-        input.addEventListener('blur', save)
-        input.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') input.blur()
-        })
+        startRenameCategory(cat, label)
       })
+
+      var badge = document.createElement('span')
+      badge.className = 'admin-count-badge'
+      badge.textContent = String(count)
+
+      var nameWrap = document.createElement('div')
+      nameWrap.className = 'admin-list__name-wrap'
+      nameWrap.appendChild(label)
+      nameWrap.appendChild(badge)
 
       var actions = document.createElement('div')
       actions.className = 'admin-list__actions'
+
+      var editBtn = document.createElement('button')
+      editBtn.type = 'button'
+      editBtn.className = 'admin-icon-btn'
+      editBtn.textContent = '✎'
+      editBtn.setAttribute('aria-label', 'Edit name')
+      editBtn.addEventListener('click', function () {
+        startRenameCategory(cat, label)
+      })
 
       var upBtn = document.createElement('button')
       upBtn.type = 'button'
@@ -171,11 +198,12 @@
         if (confirm('Delete "' + cat.name + '" and all its reels?')) HopStore.deleteCategory(cat.id)
       })
 
+      actions.appendChild(editBtn)
       actions.appendChild(upBtn)
       actions.appendChild(downBtn)
       actions.appendChild(delBtn)
 
-      li.appendChild(label)
+      li.appendChild(nameWrap)
       li.appendChild(actions)
       categoryList.appendChild(li)
     })
@@ -307,6 +335,123 @@
     reelForm.hidden = true
   })
 
+  function openReelEditForm(reel) {
+    reelEditingId.value = reel.id
+    reelTitleInput.value = reel.title
+    reelCategoryInput.value = reel.categoryId
+    reelUrlInput.value = reel.instagramUrl
+    reelThumbInput.value = reel.thumbnailUrl
+    reelThumbFileInput.value = ''
+    updateThumbPreview(reel.thumbnailUrl)
+    setThumbStatus('')
+    reelOrientationInput.value = ORIENTATION_LABELS[reel.orientation] ? reel.orientation : 'vertical'
+    reelSubmitBtn.textContent = 'Save changes'
+    reelForm.hidden = false
+  }
+
+  function buildReelRow(reel, categoryById, siblingCount, indexInGroup) {
+    var li = document.createElement('li')
+    li.className = 'admin-reel-row'
+
+    var swatch = document.createElement('span')
+    swatch.className = 'admin-reel-row__swatch'
+    if (reel.thumbnailUrl) {
+      swatch.style.backgroundImage = 'url(' + JSON.stringify(reel.thumbnailUrl).slice(1, -1) + ')'
+    } else {
+      swatch.style.background = HopUtils.placeholderGradient(reel.id)
+    }
+
+    var info = document.createElement('div')
+    info.className = 'admin-reel-row__info'
+    var title = document.createElement('span')
+    title.className = 'admin-reel-row__title'
+    title.textContent = reel.title
+    var meta = document.createElement('span')
+    meta.className = 'admin-reel-row__meta'
+    var categoryName = categoryById[reel.categoryId] ? categoryById[reel.categoryId].name : 'Uncategorized'
+    var orientationLabel = ORIENTATION_LABELS[reel.orientation] || ORIENTATION_LABELS.vertical
+    meta.textContent = categoryName + ' · ' + orientationLabel
+    info.appendChild(title)
+    info.appendChild(meta)
+
+    var actions = document.createElement('div')
+    actions.className = 'admin-list__actions'
+
+    var upBtn = document.createElement('button')
+    upBtn.type = 'button'
+    upBtn.className = 'admin-icon-btn'
+    upBtn.textContent = '↑'
+    upBtn.disabled = indexInGroup === 0
+    upBtn.setAttribute('aria-label', 'Move up')
+    upBtn.addEventListener('click', function () {
+      HopStore.reorderReel(reel.id, -1)
+    })
+
+    var downBtn = document.createElement('button')
+    downBtn.type = 'button'
+    downBtn.className = 'admin-icon-btn'
+    downBtn.textContent = '↓'
+    downBtn.disabled = indexInGroup === siblingCount - 1
+    downBtn.setAttribute('aria-label', 'Move down')
+    downBtn.addEventListener('click', function () {
+      HopStore.reorderReel(reel.id, 1)
+    })
+
+    var editBtn = document.createElement('button')
+    editBtn.type = 'button'
+    editBtn.className = 'admin-icon-btn'
+    editBtn.textContent = '✎'
+    editBtn.setAttribute('aria-label', 'Edit')
+    editBtn.addEventListener('click', function () {
+      openReelEditForm(reel)
+    })
+
+    var delBtn = document.createElement('button')
+    delBtn.type = 'button'
+    delBtn.className = 'admin-icon-btn admin-icon-btn--danger'
+    delBtn.textContent = '✕'
+    delBtn.setAttribute('aria-label', 'Delete')
+    delBtn.addEventListener('click', function () {
+      if (confirm('Delete "' + reel.title + '"?')) HopStore.deleteReel(reel.id)
+    })
+
+    actions.appendChild(upBtn)
+    actions.appendChild(downBtn)
+    actions.appendChild(editBtn)
+    actions.appendChild(delBtn)
+
+    li.appendChild(swatch)
+    li.appendChild(info)
+    li.appendChild(actions)
+    return li
+  }
+
+  function buildReelGroup(title, items, categoryById, emptyText) {
+    var group = document.createElement('div')
+    group.className = 'admin-reel-group'
+
+    var heading = document.createElement('h3')
+    heading.className = 'admin-reel-group__title'
+    heading.textContent = title + ' (' + items.length + ')'
+    group.appendChild(heading)
+
+    if (items.length === 0) {
+      var hint = document.createElement('p')
+      hint.className = 'admin-panel__hint'
+      hint.textContent = emptyText
+      group.appendChild(hint)
+      return group
+    }
+
+    var ul = document.createElement('ul')
+    ul.className = 'admin-reel-list'
+    items.forEach(function (reel, i) {
+      ul.appendChild(buildReelRow(reel, categoryById, items.length, i))
+    })
+    group.appendChild(ul)
+    return group
+  }
+
   function renderReelList() {
     var categories = HopStore.getCategories()
     var categoryById = {}
@@ -315,83 +460,62 @@
     })
 
     var filterId = reelFilter.value
-    var reels = HopStore.getReels(filterId === 'all' ? undefined : filterId)
+    var query = reelSearchInput.value.trim().toLowerCase()
+    var items = HopStore.getReels(filterId === 'all' ? undefined : filterId)
+    if (query) {
+      items = items.filter(function (r) {
+        return r.title.toLowerCase().indexOf(query) !== -1
+      })
+    }
 
-    reelList.innerHTML = ''
+    // Reorder buttons only make sense among siblings sharing a category —
+    // when "All categories" is selected, split further so up/down never
+    // jumps a reel/post between two different categories' running order.
+    var groupKey = filterId === 'all' ? function (r) { return r.categoryId } : function () { return 'all' }
+    var reelsByGroup = {}
+    var postsByGroup = {}
+    items.forEach(function (r) {
+      var key = groupKey(r)
+      var bucket = HopUtils.sectionOf(r.orientation) === 'post' ? postsByGroup : reelsByGroup
+      ;(bucket[key] = bucket[key] || []).push(r)
+    })
 
-    if (reels.length === 0) {
+    reelListWrap.innerHTML = ''
+
+    if (items.length === 0) {
       var hint = document.createElement('p')
       hint.className = 'admin-panel__hint'
-      hint.textContent = 'No reels here yet.'
-      reelList.appendChild(hint)
+      hint.textContent = query ? 'No matches for "' + reelSearchInput.value.trim() + '".' : 'No reels or posts here yet.'
+      reelListWrap.appendChild(hint)
       return
     }
 
-    reels.forEach(function (reel) {
-      var li = document.createElement('li')
-      li.className = 'admin-reel-row'
+    var reelsFlat = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'reel' })
+    var postsFlat = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'post' })
 
-      var swatch = document.createElement('span')
-      swatch.className = 'admin-reel-row__swatch'
-      if (reel.thumbnailUrl) {
-        swatch.style.backgroundImage = 'url(' + JSON.stringify(reel.thumbnailUrl).slice(1, -1) + ')'
-      } else {
-        swatch.style.background = HopUtils.placeholderGradient(reel.id)
-      }
+    if (filterId === 'all') {
+      // Group by category for readability when browsing everything at once.
+      categories.forEach(function (cat) {
+        var catReels = reelsByGroup[cat.id] || []
+        var catPosts = postsByGroup[cat.id] || []
+        if (catReels.length === 0 && catPosts.length === 0) return
 
-      var info = document.createElement('div')
-      info.className = 'admin-reel-row__info'
-      var title = document.createElement('span')
-      title.className = 'admin-reel-row__title'
-      title.textContent = reel.title
-      var meta = document.createElement('span')
-      meta.className = 'admin-reel-row__meta'
-      var categoryName = categoryById[reel.categoryId] ? categoryById[reel.categoryId].name : 'Uncategorized'
-      var orientationLabel = ORIENTATION_LABELS[reel.orientation] || ORIENTATION_LABELS.vertical
-      meta.textContent = categoryName + ' · ' + orientationLabel
-      info.appendChild(title)
-      info.appendChild(meta)
+        var catHeading = document.createElement('h3')
+        catHeading.className = 'admin-reel-group__title'
+        catHeading.textContent = cat.name
+        catHeading.style.marginTop = '18px'
+        reelListWrap.appendChild(catHeading)
 
-      var actions = document.createElement('div')
-      actions.className = 'admin-list__actions'
-
-      var editBtn = document.createElement('button')
-      editBtn.type = 'button'
-      editBtn.className = 'admin-icon-btn'
-      editBtn.textContent = '✎'
-      editBtn.setAttribute('aria-label', 'Edit')
-      editBtn.addEventListener('click', function () {
-        reelEditingId.value = reel.id
-        reelTitleInput.value = reel.title
-        reelCategoryInput.value = reel.categoryId
-        reelUrlInput.value = reel.instagramUrl
-        reelThumbInput.value = reel.thumbnailUrl
-        reelThumbFileInput.value = ''
-        updateThumbPreview(reel.thumbnailUrl)
-        setThumbStatus('')
-        reelOrientationInput.value = ORIENTATION_LABELS[reel.orientation] ? reel.orientation : 'vertical'
-        reelSubmitBtn.textContent = 'Save changes'
-        reelForm.hidden = false
+        reelListWrap.appendChild(buildReelGroup('Reels', catReels, categoryById, 'No reels yet.'))
+        reelListWrap.appendChild(buildReelGroup('Posts', catPosts, categoryById, 'No posts yet.'))
       })
-
-      var delBtn = document.createElement('button')
-      delBtn.type = 'button'
-      delBtn.className = 'admin-icon-btn admin-icon-btn--danger'
-      delBtn.textContent = '✕'
-      delBtn.setAttribute('aria-label', 'Delete')
-      delBtn.addEventListener('click', function () {
-        if (confirm('Delete "' + reel.title + '"?')) HopStore.deleteReel(reel.id)
-      })
-
-      actions.appendChild(editBtn)
-      actions.appendChild(delBtn)
-
-      li.appendChild(swatch)
-      li.appendChild(info)
-      li.appendChild(actions)
-      reelList.appendChild(li)
-    })
+    } else {
+      reelListWrap.appendChild(buildReelGroup('Reels', reelsFlat, categoryById, 'No reels yet.'))
+      reelListWrap.appendChild(buildReelGroup('Posts', postsFlat, categoryById, 'No posts yet.'))
+    }
   }
+
+  reelSearchInput.addEventListener('input', renderReelList)
 
   // ---------- Data tools ----------
 

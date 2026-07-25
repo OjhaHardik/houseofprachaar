@@ -87,7 +87,7 @@ var HOP_SEED = {
       title: 'Campus Diaries',
       instagramUrl: 'https://www.instagram.com/reel/PLACEHOLDER9/',
       thumbnailUrl: '',
-      orientation: 'landscape',
+      orientation: 'square',
       order: 1,
     },
   ],

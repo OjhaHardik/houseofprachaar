@@ -10,7 +10,11 @@
   var mobileNavToggle = document.getElementById('mobileNavToggle')
   var mobileNavLabel = document.getElementById('mobileNavLabel')
   var mobileNavPanel = document.getElementById('mobileNavPanel')
-  var gridEl = document.getElementById('grid')
+  var categoryEmpty = document.getElementById('categoryEmpty')
+  var reelsSection = document.getElementById('reelsSection')
+  var reelsGrid = document.getElementById('reelsGrid')
+  var postsSection = document.getElementById('postsSection')
+  var postsGrid = document.getElementById('postsGrid')
   var yearLabel = document.getElementById('yearLabel')
 
   var activeCategoryId = null
@@ -205,16 +209,10 @@
     )
   }
 
-  function renderGrid(reels) {
+  var ORIENTATION_CLASSES = { square: 1, portrait: 1, horizontal: 1 }
+
+  function renderGrid(gridEl, reels) {
     gridEl.innerHTML = ''
-    if (reels.length === 0) {
-      var empty = document.createElement('div')
-      empty.className = 'reel-grid__empty'
-      empty.textContent = 'No reels in this category yet.'
-      gridEl.appendChild(empty)
-      return
-    }
-    var ORIENTATION_CLASSES = { square: 1, portrait: 1, horizontal: 1, landscape: 1 }
     reels.forEach(function (reel) {
       var card = document.createElement('button')
       card.type = 'button'
@@ -232,14 +230,24 @@
     var categories = getCategories()
     renderTabs(categories)
     if (categories.length === 0) {
-      gridEl.innerHTML = ''
-      var msg = document.createElement('p')
-      msg.className = 'portfolio__empty'
-      msg.textContent = 'No categories yet — add one from the dashboard.'
-      gridEl.appendChild(msg)
+      reelsSection.hidden = true
+      postsSection.hidden = true
+      categoryEmpty.hidden = false
+      categoryEmpty.textContent = 'No categories yet — add one from the dashboard.'
       return
     }
-    renderGrid(getReels(activeCategoryId))
+
+    var items = getReels(activeCategoryId)
+    var reelsList = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'reel' })
+    var postsList = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'post' })
+
+    reelsSection.hidden = reelsList.length === 0
+    postsSection.hidden = postsList.length === 0
+    categoryEmpty.hidden = items.length !== 0
+    categoryEmpty.textContent = 'No reels in this category yet.'
+
+    if (reelsList.length) renderGrid(reelsGrid, reelsList)
+    if (postsList.length) renderGrid(postsGrid, postsList)
   }
 
   window.addEventListener('resize', function () {

@@ -2,9 +2,10 @@ var HopStore = (function () {
   var STORAGE_KEY = 'hop_data'
   var PASSCODE_KEY = 'hop_admin_passcode'
   var DEFAULT_PASSCODE = 'prachar2026'
-  var VALID_ORIENTATIONS = ['vertical', 'square', 'portrait', 'horizontal', 'landscape']
+  var VALID_ORIENTATIONS = ['vertical', 'horizontal', 'square', 'portrait']
 
   function normalizeOrientation(value) {
+    if (value === 'landscape') value = 'horizontal' // retired option; nearest remaining equivalent
     return VALID_ORIENTATIONS.indexOf(value) !== -1 ? value : 'vertical'
   }
 
@@ -155,8 +156,10 @@ var HopStore = (function () {
 
   function addReel(input) {
     var data = read()
-    var countInCategory = data.reels.filter(function (r) {
-      return r.categoryId === input.categoryId
+    var orientation = normalizeOrientation(input.orientation)
+    var section = HopUtils.sectionOf(orientation)
+    var countInSection = data.reels.filter(function (r) {
+      return r.categoryId === input.categoryId && HopUtils.sectionOf(r.orientation) === section
     }).length
     var reel = {
       id: uid('reel'),
@@ -164,12 +167,41 @@ var HopStore = (function () {
       title: input.title,
       instagramUrl: input.instagramUrl,
       thumbnailUrl: input.thumbnailUrl || '',
-      orientation: normalizeOrientation(input.orientation),
-      order: countInCategory,
+      orientation: orientation,
+      order: countInSection,
     }
     data.reels.push(reel)
     write(data)
     return reel
+  }
+
+  // Reorders a reel/post among its siblings within the same category AND the
+  // same section (Reels vs Posts move independently of each other).
+  function reorderReel(id, direction) {
+    var data = read()
+    var reel = data.reels.filter(function (r) {
+      return r.id === id
+    })[0]
+    if (!reel) return
+    var section = HopUtils.sectionOf(reel.orientation)
+    var siblings = data.reels
+      .filter(function (r) {
+        return r.categoryId === reel.categoryId && HopUtils.sectionOf(r.orientation) === section
+      })
+      .sort(function (a, b) {
+        return a.order - b.order
+      })
+    var idx = siblings.findIndex(function (r) {
+      return r.id === id
+    })
+    var swapIdx = idx + direction
+    if (idx === -1 || swapIdx < 0 || swapIdx >= siblings.length) return
+    var a = siblings[idx]
+    var b = siblings[swapIdx]
+    var tmp = a.order
+    a.order = b.order
+    b.order = tmp
+    write(data)
   }
 
   function updateReel(id, patch) {
@@ -252,6 +284,7 @@ var HopStore = (function () {
     deleteCategory: deleteCategory,
     getReels: getReels,
     addReel: addReel,
+    reorderReel: reorderReel,
     updateReel: updateReel,
     deleteReel: deleteReel,
     exportJson: exportJson,

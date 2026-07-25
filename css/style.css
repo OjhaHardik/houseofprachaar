@@ -457,6 +457,25 @@ a {
   font-weight: 600;
 }
 
+/* ---------- Category subsections (Reels / Posts) ---------- */
+
+.portfolio__section[hidden] {
+  display: none;
+}
+
+.portfolio__section-title {
+  margin: 32px 0 0;
+  font-family: var(--hop-font-display);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  color: var(--hop-white-300);
+}
+
+.portfolio__section:first-of-type .portfolio__section-title {
+  margin-top: 24px;
+}
+
 /* ---------- Reel grid ----------
    Flexbox (not CSS grid) is deliberate: with fixed-width flex items and
    `justify-content: center`, an incomplete last row centers itself
@@ -472,13 +491,6 @@ a {
   justify-content: center;
   gap: var(--reel-gap);
   padding: 40px 0 80px;
-}
-
-.reel-grid__empty {
-  width: 100%;
-  padding: 100px 0;
-  text-align: center;
-  color: var(--hop-white-300);
 }
 
 @media (max-width: 900px) {
@@ -526,27 +538,21 @@ a {
 }
 
 .reel-card--portrait .reel-card__thumb {
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 5;
 }
 
 .reel-card--horizontal .reel-card__thumb {
   aspect-ratio: 16 / 9;
 }
 
-.reel-card--landscape .reel-card__thumb {
-  aspect-ratio: 4 / 3;
-}
-
-/* Wider-than-tall formats get double width so they read at a comparable
-   height to their portrait/square neighbors in the same row. */
-.reel-card--horizontal,
-.reel-card--landscape {
+/* Horizontal reels get double width so they read at a comparable height to
+   their portrait/square neighbors in the same row. */
+.reel-card--horizontal {
   flex-basis: calc((100% - (var(--reel-cols) - 1) * var(--reel-gap)) / var(--reel-cols) * 2 + var(--reel-gap));
 }
 
 @media (max-width: 560px) {
-  .reel-card--horizontal,
-  .reel-card--landscape {
+  .reel-card--horizontal {
     flex-basis: 100%;
   }
 }
