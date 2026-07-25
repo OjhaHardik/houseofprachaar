@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard — House of Prachar</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body>
+    <!-- Passcode gate -->
+    <div id="gate" class="admin-gate">
+      <form id="gateForm" class="admin-gate__panel">
+        <span class="eyebrow">House of Prachar</span>
+        <h1 class="admin-gate__title">Dashboard access</h1>
+        <p class="admin-gate__hint">
+          Enter the passcode to manage categories and reels (<span id="passcodeHint"></span>).
+        </p>
+        <input id="gateInput" type="password" placeholder="Passcode" class="admin-gate__input" autocomplete="off" />
+        <span id="gateError" class="admin-gate__error" hidden>Incorrect passcode.</span>
+        <button type="submit" class="admin-gate__submit">Unlock</button>
+        <a href="index.html" class="admin-gate__back">← Back to site</a>
+      </form>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="admin" class="admin" hidden>
+      <header class="admin__header container">
+        <div>
+          <span class="eyebrow">House of Prachar</span>
+          <h1 class="admin__title">Dashboard</h1>
+        </div>
+        <div class="admin__header-actions">
+          <a href="index.html" class="admin__link">← View site</a>
+          <button id="lockBtn" class="admin__link" type="button">Lock</button>
+        </div>
+      </header>
+
+      <main class="container admin__main">
+        <!-- Categories -->
+        <section class="admin-panel">
+          <h2 class="admin-panel__title">Categories</h2>
+          <ul id="categoryList" class="admin-list"></ul>
+          <form id="categoryForm" class="admin-panel__row">
+            <input id="categoryNameInput" class="admin-input" placeholder="New category name" />
+            <button type="submit" class="admin-btn">Add category</button>
+          </form>
+        </section>
+
+        <!-- Reels -->
+        <section class="admin-panel">
+          <div class="admin-panel__row admin-panel__row--between">
+            <h2 class="admin-panel__title">Reels</h2>
+            <div class="admin-panel__row">
+              <select id="reelFilter" class="admin-input">
+                <option value="all">All categories</option>
+              </select>
+              <button id="newReelBtn" class="admin-btn" type="button">+ New reel</button>
+            </div>
+          </div>
+
+          <form id="reelForm" class="admin-form" hidden>
+            <input type="hidden" id="reelEditingId" value="" />
+            <label class="admin-field">
+              <span>Title</span>
+              <input id="reelTitleInput" class="admin-input" placeholder="e.g. Zafrani Chicken Biryani" required />
+            </label>
+            <label class="admin-field">
+              <span>Category</span>
+              <select id="reelCategoryInput" class="admin-input"></select>
+            </label>
+            <label class="admin-field">
+              <span>Instagram reel URL</span>
+              <input
+                id="reelUrlInput"
+                class="admin-input"
+                placeholder="https://www.instagram.com/reel/..."
+                required
+              />
+            </label>
+            <label class="admin-field">
+              <span>Thumbnail image (optional — leave blank for a generated placeholder)</span>
+              <div class="admin-thumb-upload">
+                <img id="reelThumbPreview" class="admin-thumb-upload__preview" hidden alt="Thumbnail preview" />
+                <div class="admin-thumb-upload__controls">
+                  <input id="reelThumbFileInput" type="file" accept="image/*" class="admin-input" />
+                  <span class="admin-thumb-upload__or">or paste an image URL</span>
+                  <input id="reelThumbInput" class="admin-input" placeholder="https://..." />
+                  <button type="button" id="reelThumbClearBtn" class="admin-btn admin-btn--ghost" hidden>
+                    Remove thumbnail
+                  </button>
+                  <span id="reelThumbStatus" class="admin-panel__hint" hidden></span>
+                </div>
+              </div>
+            </label>
+            <label class="admin-field">
+              <span>Grid orientation</span>
+              <select id="reelOrientationInput" class="admin-input">
+                <option value="vertical">Vertical (portrait, 9:16)</option>
+                <option value="horizontal">Horizontal (landscape, 16:9, spans 2 columns)</option>
+              </select>
+            </label>
+            <div class="admin-panel__row">
+              <button type="submit" id="reelSubmitBtn" class="admin-btn">Add reel</button>
+              <button type="button" id="reelCancelBtn" class="admin-btn admin-btn--ghost">Cancel</button>
+            </div>
+          </form>
+
+          <ul id="reelList" class="admin-reel-list"></ul>
+        </section>
+
+        <!-- Data tools -->
+        <section class="admin-panel">
+          <h2 class="admin-panel__title">Data</h2>
+          <p class="admin-panel__hint">
+            This site is static — the dashboard saves to your browser only. To publish changes for every
+            visitor: <strong>Export JSON</strong>, then update the <code>HOP_SEED</code> object in
+            <code>js/seed-data.js</code> with the downloaded content, then commit &amp; push (or re-upload the
+            file to your host).
+          </p>
+          <div class="admin-panel__row">
+            <button id="exportBtn" class="admin-btn" type="button">Export JSON</button>
+            <button id="importBtn" class="admin-btn admin-btn--ghost" type="button">Import JSON</button>
+            <input id="importFile" type="file" accept="application/json" class="visually-hidden" />
+            <button id="resetBtn" class="admin-btn admin-btn--ghost" type="button">Reset to seed</button>
+          </div>
+          <span id="dataMessage" class="admin-panel__saved" hidden></span>
+        </section>
+
+        <!-- Passcode settings -->
+        <section class="admin-panel">
+          <h2 class="admin-panel__title">Change passcode</h2>
+          <p class="admin-panel__hint">
+            This is a soft, client-side gate only — the check happens in the browser, so treat it as a
+            deterrent against casual visitors, not real security.
+          </p>
+          <div class="admin-panel__row">
+            <input id="newPasscodeInput" type="password" placeholder="New passcode" class="admin-input" />
+            <button id="savePasscodeBtn" class="admin-btn" type="button">Save</button>
+          </div>
+          <span id="passcodeMessage" class="admin-panel__saved" hidden>Passcode updated.</span>
+        </section>
+      </main>
+    </div>
+
+    <script src="js/seed-data.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/admin.js"></script>
+  </body>
+</html>

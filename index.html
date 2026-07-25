@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>House of Prachar</title>
+  <meta name="description" content="House of Prachar — creative work, reels & campaigns." />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <!-- Hero -->
+  <section id="hero" class="hero">
+    <div class="hero__grain" aria-hidden="true"></div>
+    <div class="hero__glow" aria-hidden="true"></div>
+
+    <header class="hero__top">
+      <span class="eyebrow">House of Prachar</span>
+      <span class="eyebrow">Stories &amp; Reels</span>
+    </header>
+
+    <div class="hero__center">
+      <h1 class="hero__title">
+        <span>HOUSE</span>
+        <span>OF <em>PRACHAR</em></span>
+      </h1>
+      <p class="hero__tagline">A reel of every brand we&apos;ve told a story for.</p>
+    </div>
+
+    <div class="hero__bottom">
+      <button id="enterBtn" class="hero__enter" type="button">
+        <span class="hero__enter-dot"></span>
+        Enter
+      </button>
+      <span class="eyebrow hero__scroll-hint">Click or press Enter</span>
+    </div>
+  </section>
+
+  <!-- Portfolio -->
+  <div id="portfolio" class="portfolio" hidden>
+    <header class="portfolio__header container">
+      <span class="portfolio__logo">House of Prachar</span>
+    </header>
+
+    <div class="container">
+      <nav id="tabs" class="tabs" aria-label="Categories"></nav>
+      <div id="grid" class="reel-grid"></div>
+    </div>
+
+    <footer class="portfolio__footer container">
+      <span class="eyebrow" id="yearLabel"></span>
+      <a class="eyebrow portfolio__admin-link" href="admin.html">Dashboard</a>
+    </footer>
+  </div>
+
+  <script src="js/seed-data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/main.js"></script>
+</body>
+
+</html>

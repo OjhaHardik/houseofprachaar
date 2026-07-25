@@ -1,0 +1,16 @@
+:root {
+  --hop-red: #d42c3d;
+  --hop-black-900: #141414;
+  --hop-black-800: #1e1e1e;
+  --hop-black-700: #292929;
+  --hop-black-600: #333333;
+  --hop-white: #ffffff;
+  --hop-white-300: #a8a8a8;
+
+  --hop-font-display: 'Outfit', system-ui, sans-serif;
+  --hop-font-body: 'Inter', system-ui, sans-serif;
+
+  --hop-container: 1280px;
+  --hop-radius: 14px;
+  --hop-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

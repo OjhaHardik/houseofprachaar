@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process -Id 31272,1256 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"ProcessId=31272\")",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"ProcessId=1256\")",
+      "Bash(curl -sf http://localhost:5173/house-of-prachar/)",
+      "Bash(curl -s http://localhost:5000/)",
+      "PowerShell(Stop-Process -Id 1256 -Force -ErrorAction SilentlyContinue)",
+      "Bash(rm -f tsconfig.app.tsbuildinfo tsconfig.node.tsbuildinfo)",
+      "Bash(mkdir -p assets css js)",
+      "Bash(mv public/favicon.svg assets/favicon.svg)",
+      "Bash(rmdir public *)",
+      "Bash(node verify2.js)",
+      "WebSearch"
+    ]
+  }
+}
