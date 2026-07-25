@@ -49,11 +49,23 @@
   <!-- Portfolio -->
   <div id="portfolio" class="portfolio" hidden>
     <header class="portfolio__header container">
-      <span class="portfolio__logo">House of Prachar</span>
+      <button id="logoHome" class="portfolio__logo" type="button">House of Prachar</button>
     </header>
 
     <div class="container">
       <nav id="tabs" class="tabs" aria-label="Categories"></nav>
+
+      <div class="mobile-nav">
+        <button id="mobileNavToggle" class="mobile-nav__toggle" type="button" aria-expanded="false"
+          aria-controls="mobileNavPanel">
+          <span class="mobile-nav__hamburger" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+          <span id="mobileNavLabel" class="mobile-nav__label">Categories</span>
+        </button>
+        <div id="mobileNavPanel" class="mobile-nav__panel" hidden></div>
+      </div>
+
       <div id="grid" class="reel-grid"></div>
     </div>
 

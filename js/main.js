@@ -4,7 +4,11 @@
   var heroEl = document.getElementById('hero')
   var portfolioEl = document.getElementById('portfolio')
   var enterBtn = document.getElementById('enterBtn')
+  var logoHome = document.getElementById('logoHome')
   var tabsEl = document.getElementById('tabs')
+  var mobileNavToggle = document.getElementById('mobileNavToggle')
+  var mobileNavLabel = document.getElementById('mobileNavLabel')
+  var mobileNavPanel = document.getElementById('mobileNavPanel')
   var gridEl = document.getElementById('grid')
   var yearLabel = document.getElementById('yearLabel')
 
@@ -16,6 +20,7 @@
 
   function enterPortfolio(skipAnimation) {
     sessionStorage.setItem(ENTERED_KEY, '1')
+    heroEl.classList.remove('hero--leaving')
     if (skipAnimation) {
       heroEl.hidden = true
       portfolioEl.hidden = false
@@ -30,36 +35,79 @@
     }, 700)
   }
 
+  // The title in the portfolio header doubles as a "home" link back to the
+  // full-screen hero — re-entering plays the same enter transition next time.
+  function goToHero() {
+    sessionStorage.removeItem(ENTERED_KEY)
+    closeMobileNav()
+    portfolioEl.hidden = true
+    heroEl.hidden = false
+    heroEl.classList.remove('hero--leaving')
+  }
+
+  logoHome.addEventListener('click', goToHero)
+
+  heroEl.addEventListener('pointermove', function (e) {
+    var rect = heroEl.getBoundingClientRect()
+    heroEl.style.setProperty('--x', ((e.clientX - rect.left) / rect.width) * 100 + '%')
+    heroEl.style.setProperty('--y', ((e.clientY - rect.top) / rect.height) * 100 + '%')
+  })
+
   if (sessionStorage.getItem(ENTERED_KEY) === '1') {
     enterPortfolio(true)
-  } else {
-    heroEl.addEventListener('pointermove', function (e) {
-      var rect = heroEl.getBoundingClientRect()
-      heroEl.style.setProperty('--x', ((e.clientX - rect.left) / rect.width) * 100 + '%')
-      heroEl.style.setProperty('--y', ((e.clientY - rect.top) / rect.height) * 100 + '%')
-    })
-
-    enterBtn.addEventListener('click', function () {
-      enterPortfolio(false)
-    })
-
-    window.addEventListener('keydown', function (e) {
-      if (heroEl.hidden) return
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        enterPortfolio(false)
-      }
-    })
   }
+
+  enterBtn.addEventListener('click', function () {
+    enterPortfolio(false)
+  })
+
+  window.addEventListener('keydown', function (e) {
+    if (heroEl.hidden) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      enterPortfolio(false)
+    }
+  })
+
+  // ---------- Mobile category menu ----------
+
+  function openMobileNav() {
+    mobileNavPanel.hidden = false
+    mobileNavToggle.setAttribute('aria-expanded', 'true')
+    mobileNavToggle.classList.add('mobile-nav__toggle--open')
+  }
+
+  function closeMobileNav() {
+    mobileNavPanel.hidden = true
+    mobileNavToggle.setAttribute('aria-expanded', 'false')
+    mobileNavToggle.classList.remove('mobile-nav__toggle--open')
+  }
+
+  mobileNavToggle.addEventListener('click', function () {
+    if (mobileNavPanel.hidden) openMobileNav()
+    else closeMobileNav()
+  })
+
+  document.addEventListener('click', function (e) {
+    if (mobileNavPanel.hidden) return
+    if (e.target === mobileNavToggle || mobileNavToggle.contains(e.target)) return
+    if (mobileNavPanel.contains(e.target)) return
+    closeMobileNav()
+  })
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !mobileNavPanel.hidden) closeMobileNav()
+  })
 
   // ---------- Portfolio ----------
 
   function renderTabs(categories) {
-    tabsEl.innerHTML = ''
     if (!activeCategoryId || !categories.some(function (c) { return c.id === activeCategoryId })) {
       activeCategoryId = categories.length ? categories[0].id : null
     }
 
+    // Desktop/tablet horizontal tabs
+    tabsEl.innerHTML = ''
     categories.forEach(function (cat) {
       var btn = document.createElement('button')
       btn.type = 'button'
@@ -83,6 +131,24 @@
     } else {
       underline.style.width = '0'
     }
+
+    // Phone hamburger menu — same category set, collapsed behind a toggle
+    var activeCat = categories.filter(function (c) { return c.id === activeCategoryId })[0]
+    mobileNavLabel.textContent = activeCat ? activeCat.name : 'Categories'
+
+    mobileNavPanel.innerHTML = ''
+    categories.forEach(function (cat) {
+      var item = document.createElement('button')
+      item.type = 'button'
+      item.className = 'mobile-nav__item' + (cat.id === activeCategoryId ? ' mobile-nav__item--active' : '')
+      item.textContent = cat.name
+      item.addEventListener('click', function () {
+        activeCategoryId = cat.id
+        closeMobileNav()
+        renderAll()
+      })
+      mobileNavPanel.appendChild(item)
+    })
   }
 
   function reelCardMarkup(reel) {

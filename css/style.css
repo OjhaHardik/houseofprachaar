@@ -248,10 +248,19 @@ a {
 }
 
 .portfolio__logo {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--hop-white);
   font-family: var(--hop-font-display);
   font-weight: 600;
   font-size: 20px;
   letter-spacing: -0.01em;
+  transition: color 0.2s var(--hop-ease);
+}
+
+.portfolio__logo:hover {
+  color: var(--hop-red);
 }
 
 .portfolio__empty {
@@ -321,10 +330,131 @@ a {
 }
 
 @media (max-width: 640px) {
-  .tabs__item {
-    padding: 16px 14px;
-    font-size: 14px;
+  .tabs {
+    display: none;
   }
+}
+
+/* ---------- Mobile category menu (phones) ---------- */
+
+.mobile-nav {
+  display: none;
+  position: relative;
+  border-bottom: 1px solid var(--hop-black-700);
+}
+
+@media (max-width: 640px) {
+  .mobile-nav {
+    display: block;
+  }
+}
+
+.mobile-nav__toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 16px 2px;
+  color: var(--hop-white);
+  font-family: var(--hop-font-body);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.mobile-nav__hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 20px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.mobile-nav__hamburger span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: var(--hop-white);
+  border-radius: 1px;
+  transition: transform 0.25s var(--hop-ease), opacity 0.25s var(--hop-ease);
+}
+
+.mobile-nav__toggle--open .mobile-nav__hamburger span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.mobile-nav__toggle--open .mobile-nav__hamburger span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-nav__toggle--open .mobile-nav__hamburger span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+.mobile-nav__label {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-nav__panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  display: none;
+  flex-direction: column;
+  background: var(--hop-black-800);
+  border: 1px solid var(--hop-black-700);
+  border-radius: 0 0 var(--hop-radius) var(--hop-radius);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: hop-nav-open 0.2s var(--hop-ease);
+}
+
+/* [hidden] alone isn't reliable once any author rule sets `display` on this
+   selector, since author styles always beat the UA's default [hidden] rule
+   regardless of specificity — so visibility is driven explicitly here. */
+.mobile-nav__panel:not([hidden]) {
+  display: flex;
+}
+
+@keyframes hop-nav-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-nav__item {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--hop-black-700);
+  text-align: left;
+  padding: 14px 16px;
+  color: var(--hop-white-300);
+  font-family: var(--hop-font-body);
+  font-size: 15px;
+}
+
+.mobile-nav__item:last-child {
+  border-bottom: none;
+}
+
+.mobile-nav__item--active {
+  color: var(--hop-white);
+  background: var(--hop-black-700);
+  font-weight: 600;
 }
 
 /* ---------- Reel grid ---------- */
