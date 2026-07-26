@@ -61,24 +61,6 @@
   ],
   "items": [
     {
-      "id": "item-6",
-      "subcategoryId": "sub-beauty-reels",
-      "title": "Glow Ritual",
-      "linkUrl": "https://www.instagram.com/reel/PLACEHOLDER4/",
-      "thumbnailUrl": "",
-      "ratio": "vertical",
-      "order": 0
-    },
-    {
-      "id": "item-7",
-      "subcategoryId": "sub-beauty-reels",
-      "title": "Bridal Season Prep",
-      "linkUrl": "https://www.instagram.com/reel/PLACEHOLDER5/",
-      "thumbnailUrl": "",
-      "ratio": "vertical",
-      "order": 1
-    },
-    {
       "id": "item-10",
       "subcategoryId": "sub-healthcare-reels",
       "title": "Zakham pe Marham",
