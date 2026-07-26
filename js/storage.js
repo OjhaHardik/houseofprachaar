@@ -2,12 +2,6 @@ var HopStore = (function () {
   var STORAGE_KEY = 'hop_data'
   var PASSCODE_KEY = 'hop_admin_passcode'
   var DEFAULT_PASSCODE = 'prachar2026'
-  var VALID_ORIENTATIONS = ['vertical', 'horizontal', 'square', 'portrait']
-
-  function normalizeOrientation(value) {
-    if (value === 'landscape') value = 'horizontal' // retired option; nearest remaining equivalent
-    return VALID_ORIENTATIONS.indexOf(value) !== -1 ? value : 'vertical'
-  }
 
   var listeners = []
 
@@ -32,12 +26,13 @@ var HopStore = (function () {
     if (!raw) return clone(HOP_SEED)
     try {
       var parsed = JSON.parse(raw)
-      if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.reels)) throw new Error('bad shape')
-      // Backfill fields added after some browsers already had data saved.
-      parsed.reels.forEach(function (r) {
-        r.orientation = normalizeOrientation(r.orientation)
-      })
-      return parsed
+      var normalized = HopUtils.normalizeSiteData(parsed)
+      if (!normalized) throw new Error('bad shape')
+      // Migration (or ratio clamping) may have changed the shape — write it
+      // back once so the next read() call sees already-current data instead
+      // of re-migrating from scratch every time.
+      if (normalized !== parsed) localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
+      return normalized
     } catch (e) {
       return clone(HOP_SEED)
     }
@@ -58,11 +53,10 @@ var HopStore = (function () {
         return res.json()
       })
       .then(function (data) {
-        if (!Array.isArray(data.categories) || !Array.isArray(data.reels)) {
-          throw new Error('data.json has an unexpected shape')
-        }
-        write(data)
-        return data
+        var normalized = HopUtils.normalizeSiteData(data)
+        if (!normalized) throw new Error('data.json has an unexpected shape')
+        write(normalized)
+        return normalized
       })
   }
 
@@ -129,70 +123,87 @@ var HopStore = (function () {
     write(data)
   }
 
+  // Deleting a category cascades two levels: its subcategories, then the
+  // items that belonged to those subcategories.
   function deleteCategory(id) {
     var data = read()
+    var removedSubIds = data.subcategories
+      .filter(function (s) { return s.categoryId === id })
+      .map(function (s) { return s.id })
     data.categories = data.categories.filter(function (c) {
       return c.id !== id
     })
-    data.reels = data.reels.filter(function (r) {
-      return r.categoryId !== id
+    data.subcategories = data.subcategories.filter(function (s) {
+      return s.categoryId !== id
+    })
+    data.items = data.items.filter(function (it) {
+      return removedSubIds.indexOf(it.subcategoryId) === -1
     })
     write(data)
   }
 
-  // --- Reels ---
+  // --- Subcategories ---
 
-  function getReels(categoryId) {
-    var reels = read().reels
+  function getSubcategories(categoryId) {
+    var subs = read().subcategories
     var filtered = categoryId
-      ? reels.filter(function (r) {
-          return r.categoryId === categoryId
+      ? subs.filter(function (s) {
+          return s.categoryId === categoryId
         })
-      : reels
+      : subs
     return filtered.slice().sort(function (a, b) {
       return a.order - b.order
     })
   }
 
-  function addReel(input) {
+  function addSubcategory(categoryId, name, type) {
     var data = read()
-    var orientation = normalizeOrientation(input.orientation)
-    var section = HopUtils.sectionOf(orientation)
-    var countInSection = data.reels.filter(function (r) {
-      return r.categoryId === input.categoryId && HopUtils.sectionOf(r.orientation) === section
+    var countInCategory = data.subcategories.filter(function (s) {
+      return s.categoryId === categoryId
     }).length
-    var reel = {
-      id: uid('reel'),
-      categoryId: input.categoryId,
-      title: input.title,
-      instagramUrl: input.instagramUrl,
-      thumbnailUrl: input.thumbnailUrl || '',
-      orientation: orientation,
-      order: countInSection,
+    var slug = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+    var subcategory = {
+      id: uid('sub'),
+      categoryId: categoryId,
+      name: name.trim(),
+      slug: slug || uid('sub'),
+      type: type === 'photo' ? 'photo' : 'video',
+      order: countInCategory,
     }
-    data.reels.push(reel)
+    data.subcategories.push(subcategory)
     write(data)
-    return reel
+    return subcategory
   }
 
-  // Reorders a reel/post among its siblings within the same category AND the
-  // same section (Reels vs Posts move independently of each other).
-  function reorderReel(id, direction) {
+  function renameSubcategory(id, name) {
     var data = read()
-    var reel = data.reels.filter(function (r) {
-      return r.id === id
+    var sub = data.subcategories.filter(function (s) {
+      return s.id === id
     })[0]
-    if (!reel) return
-    var section = HopUtils.sectionOf(reel.orientation)
-    var siblings = data.reels
-      .filter(function (r) {
-        return r.categoryId === reel.categoryId && HopUtils.sectionOf(r.orientation) === section
+    if (!sub) return
+    sub.name = name.trim()
+    write(data)
+  }
+
+  function reorderSubcategory(id, direction) {
+    var data = read()
+    var sub = data.subcategories.filter(function (s) {
+      return s.id === id
+    })[0]
+    if (!sub) return
+    var siblings = data.subcategories
+      .filter(function (s) {
+        return s.categoryId === sub.categoryId
       })
       .sort(function (a, b) {
         return a.order - b.order
       })
-    var idx = siblings.findIndex(function (r) {
-      return r.id === id
+    var idx = siblings.findIndex(function (s) {
+      return s.id === id
     })
     var swapIdx = idx + direction
     if (idx === -1 || swapIdx < 0 || swapIdx >= siblings.length) return
@@ -204,25 +215,121 @@ var HopStore = (function () {
     write(data)
   }
 
-  function updateReel(id, patch) {
+  // Deleting a subcategory cascades to its items.
+  function deleteSubcategory(id) {
     var data = read()
-    var reel = data.reels.filter(function (r) {
-      return r.id === id
+    data.subcategories = data.subcategories.filter(function (s) {
+      return s.id !== id
+    })
+    data.items = data.items.filter(function (it) {
+      return it.subcategoryId !== id
+    })
+    write(data)
+  }
+
+  // --- Items ---
+
+  function getItems(subcategoryId) {
+    var items = read().items
+    var filtered = subcategoryId
+      ? items.filter(function (it) {
+          return it.subcategoryId === subcategoryId
+        })
+      : items
+    return filtered.slice().sort(function (a, b) {
+      return a.order - b.order
+    })
+  }
+
+  // Resolves every subcategory under a category first, then returns the
+  // items belonging to any of them — used by the admin "All categories"
+  // filter view, which groups by category rather than one subcategory at a
+  // time.
+  function getItemsByCategory(categoryId) {
+    var subIds = getSubcategories(categoryId).map(function (s) {
+      return s.id
+    })
+    return read()
+      .items.filter(function (it) {
+        return subIds.indexOf(it.subcategoryId) !== -1
+      })
+      .sort(function (a, b) {
+        return a.order - b.order
+      })
+  }
+
+  function addItem(input) {
+    var data = read()
+    var subcat = data.subcategories.filter(function (s) {
+      return s.id === input.subcategoryId
     })[0]
-    if (!reel) return
-    for (var key in patch) {
-      if (Object.prototype.hasOwnProperty.call(patch, key)) reel[key] = patch[key]
+    var type = subcat ? subcat.type : 'video'
+    var countInSubcategory = data.items.filter(function (it) {
+      return it.subcategoryId === input.subcategoryId
+    }).length
+    var item = {
+      id: uid('item'),
+      subcategoryId: input.subcategoryId,
+      title: input.title,
+      linkUrl: input.linkUrl || '',
+      thumbnailUrl: input.thumbnailUrl || '',
+      ratio: HopUtils.normalizeRatio(input.ratio, type),
+      order: countInSubcategory,
     }
-    if (Object.prototype.hasOwnProperty.call(patch, 'orientation')) {
-      reel.orientation = normalizeOrientation(reel.orientation)
+    data.items.push(item)
+    write(data)
+    return item
+  }
+
+  // Reorders an item among its siblings within the same subcategory.
+  function reorderItem(id, direction) {
+    var data = read()
+    var item = data.items.filter(function (it) {
+      return it.id === id
+    })[0]
+    if (!item) return
+    var siblings = data.items
+      .filter(function (it) {
+        return it.subcategoryId === item.subcategoryId
+      })
+      .sort(function (a, b) {
+        return a.order - b.order
+      })
+    var idx = siblings.findIndex(function (it) {
+      return it.id === id
+    })
+    var swapIdx = idx + direction
+    if (idx === -1 || swapIdx < 0 || swapIdx >= siblings.length) return
+    var a = siblings[idx]
+    var b = siblings[swapIdx]
+    var tmp = a.order
+    a.order = b.order
+    b.order = tmp
+    write(data)
+  }
+
+  function updateItem(id, patch) {
+    var data = read()
+    var item = data.items.filter(function (it) {
+      return it.id === id
+    })[0]
+    if (!item) return
+    for (var key in patch) {
+      if (Object.prototype.hasOwnProperty.call(patch, key)) item[key] = patch[key]
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'ratio') || Object.prototype.hasOwnProperty.call(patch, 'subcategoryId')) {
+      var subcat = data.subcategories.filter(function (s) {
+        return s.id === item.subcategoryId
+      })[0]
+      item.ratio = HopUtils.normalizeRatio(item.ratio, subcat ? subcat.type : 'video')
     }
     write(data)
   }
 
-  function deleteReel(id) {
+  function deleteItem(id) {
     var data = read()
-    data.reels = data.reels.filter(function (r) {
-      return r.id !== id
+    data.items = data.items.filter(function (it) {
+      return it.id !== id
     })
     write(data)
   }
@@ -246,10 +353,11 @@ var HopStore = (function () {
   function importJson(json) {
     try {
       var parsed = JSON.parse(json)
-      if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.reels)) {
-        return { ok: false, error: 'JSON must contain "categories" and "reels" arrays.' }
+      var normalized = HopUtils.normalizeSiteData(parsed)
+      if (!normalized) {
+        return { ok: false, error: 'JSON must contain "categories"/"subcategories"/"items" (or legacy "categories"/"reels") arrays.' }
       }
-      write(parsed)
+      write(normalized)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e.message || 'Invalid JSON' }
@@ -282,11 +390,17 @@ var HopStore = (function () {
     renameCategory: renameCategory,
     reorderCategory: reorderCategory,
     deleteCategory: deleteCategory,
-    getReels: getReels,
-    addReel: addReel,
-    reorderReel: reorderReel,
-    updateReel: updateReel,
-    deleteReel: deleteReel,
+    getSubcategories: getSubcategories,
+    addSubcategory: addSubcategory,
+    renameSubcategory: renameSubcategory,
+    reorderSubcategory: reorderSubcategory,
+    deleteSubcategory: deleteSubcategory,
+    getItems: getItems,
+    getItemsByCategory: getItemsByCategory,
+    addItem: addItem,
+    reorderItem: reorderItem,
+    updateItem: updateItem,
+    deleteItem: deleteItem,
     exportJson: exportJson,
     downloadJson: downloadJson,
     importJson: importJson,

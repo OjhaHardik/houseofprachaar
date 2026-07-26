@@ -12,7 +12,8 @@
       "Bash(mv public/favicon.svg assets/favicon.svg)",
       "Bash(rmdir public *)",
       "Bash(node verify2.js)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(node reproduce-crash.js)"
     ]
   }
 }

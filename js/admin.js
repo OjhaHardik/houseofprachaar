@@ -1,40 +1,6 @@
 ;(function () {
   var AUTH_KEY = 'hop_admin_auth'
 
-  var ORIENTATION_LABELS = {
-    vertical: 'Vertical (9:16)',
-    horizontal: 'Horizontal (16:9)',
-    square: 'Square (1:1)',
-    portrait: 'Portrait (4:5)',
-  }
-
-  // Reels and Posts are edited through the same form, but with a different
-  // field set: Reels need a real Instagram link (the whole point is linking
-  // out to the video); Posts are upload-first showcase images and don't
-  // require one. Which orientations are offered is scoped per section too.
-  var SECTION_CONFIG = {
-    reel: {
-      orientations: ['vertical', 'horizontal'],
-      urlLabel: 'Instagram reel URL',
-      urlPlaceholder: 'https://www.instagram.com/reel/...',
-      urlRequired: true,
-      thumbLabel: 'Thumbnail image (optional — leave blank for a generated placeholder)',
-      thumbRequired: false,
-      hint: 'Reels link out to a real Instagram reel when clicked.',
-      addLabel: 'Add reel',
-    },
-    post: {
-      orientations: ['square', 'portrait'],
-      urlLabel: 'Instagram post URL (optional)',
-      urlPlaceholder: 'https://www.instagram.com/p/... (optional)',
-      urlRequired: false,
-      thumbLabel: 'Image (required)',
-      thumbRequired: true,
-      hint: 'Posts are upload-first — the image is what shows in the grid. Linking to Instagram is optional.',
-      addLabel: 'Add post',
-    },
-  }
-
   var gateEl = document.getElementById('gate')
   var gateForm = document.getElementById('gateForm')
   var gateInput = document.getElementById('gateInput')
@@ -49,15 +15,13 @@
   var categoryNameInput = document.getElementById('categoryNameInput')
 
   var reelFilter = document.getElementById('reelFilter')
-  var newReelBtn = document.getElementById('newReelBtn')
-  var newPostBtn = document.getElementById('newPostBtn')
+  var newItemBtn = document.getElementById('newItemBtn')
   var reelForm = document.getElementById('reelForm')
   var reelEditingId = document.getElementById('reelEditingId')
-  var reelFormSection = document.getElementById('reelFormSection')
   var reelFormHint = document.getElementById('reelFormHint')
   var reelTitleInput = document.getElementById('reelTitleInput')
   var reelCategoryInput = document.getElementById('reelCategoryInput')
-  var reelUrlLabel = document.getElementById('reelUrlLabel')
+  var reelSubcategoryInput = document.getElementById('reelSubcategoryInput')
   var reelUrlInput = document.getElementById('reelUrlInput')
   var reelThumbLabel = document.getElementById('reelThumbLabel')
   var reelThumbInput = document.getElementById('reelThumbInput')
@@ -65,7 +29,7 @@
   var reelThumbPreview = document.getElementById('reelThumbPreview')
   var reelThumbClearBtn = document.getElementById('reelThumbClearBtn')
   var reelThumbStatus = document.getElementById('reelThumbStatus')
-  var reelOrientationInput = document.getElementById('reelOrientationInput')
+  var reelRatioInput = document.getElementById('reelRatioInput')
   var reelSubmitBtn = document.getElementById('reelSubmitBtn')
   var reelCancelBtn = document.getElementById('reelCancelBtn')
   var reelSearchInput = document.getElementById('reelSearchInput')
@@ -78,6 +42,10 @@
   var resetBtn = document.getElementById('resetBtn')
   var dataMessage = document.getElementById('dataMessage')
 
+  var localSaveSection = document.getElementById('localSaveSection')
+  var localSaveBtn = document.getElementById('localSaveBtn')
+  var localSaveMessage = document.getElementById('localSaveMessage')
+
   var githubTokenInput = document.getElementById('githubTokenInput')
   var saveTokenBtn = document.getElementById('saveTokenBtn')
   var forgetTokenBtn = document.getElementById('forgetTokenBtn')
@@ -88,6 +56,14 @@
   var newPasscodeInput = document.getElementById('newPasscodeInput')
   var savePasscodeBtn = document.getElementById('savePasscodeBtn')
   var passcodeMessage = document.getElementById('passcodeMessage')
+
+  // Which categories' subcategory panels are open — persists across
+  // renderCategories() re-renders (every store mutation triggers one).
+  // Declared up here (not next to the functions that use it further down)
+  // because an already-authenticated session renders the dashboard
+  // immediately at the bottom of this file, and that must never run before
+  // every `var` this script depends on has actually been assigned.
+  var expandedCategoryIds = {}
 
   // ---------- Gate ----------
 
@@ -115,12 +91,6 @@
 
   passcodeHint.textContent = HopStore.getPasscodeHint()
 
-  if (sessionStorage.getItem(AUTH_KEY) === '1') {
-    showAdmin()
-  } else {
-    showGate()
-  }
-
   gateForm.addEventListener('submit', function (e) {
     e.preventDefault()
     if (HopStore.checkPasscode(gateInput.value)) {
@@ -140,7 +110,7 @@
     showGate()
   })
 
-  // ---------- Categories ----------
+  // ---------- Categories & Subcategories ----------
 
   function startRenameCategory(cat, label) {
     var input = document.createElement('input')
@@ -159,18 +129,166 @@
     })
   }
 
+  function startRenameSubcategory(sub, label) {
+    var input = document.createElement('input')
+    input.className = 'admin-input'
+    input.value = sub.name
+    label.parentNode.replaceChild(input, label)
+    input.focus()
+    input.select()
+    var save = function () {
+      if (input.value.trim()) HopStore.renameSubcategory(sub.id, input.value)
+      else renderCategories()
+    }
+    input.addEventListener('blur', save)
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') input.blur()
+    })
+  }
+
+  function buildSubcategoryRow(sub, siblingCount, indexInGroup) {
+    var li = document.createElement('li')
+    li.className = 'admin-list__row'
+
+    var label = document.createElement('button')
+    label.type = 'button'
+    label.className = 'admin-list__label'
+    label.textContent = sub.name
+    label.addEventListener('click', function () {
+      startRenameSubcategory(sub, label)
+    })
+
+    var typeBadge = document.createElement('span')
+    typeBadge.className = 'admin-count-badge'
+    typeBadge.textContent = sub.type === 'photo' ? 'Photo' : 'Video'
+
+    var countBadge = document.createElement('span')
+    countBadge.className = 'admin-count-badge'
+    countBadge.textContent = String(HopStore.getItems(sub.id).length)
+
+    var nameWrap = document.createElement('div')
+    nameWrap.className = 'admin-list__name-wrap'
+    nameWrap.appendChild(label)
+    nameWrap.appendChild(typeBadge)
+    nameWrap.appendChild(countBadge)
+
+    var actions = document.createElement('div')
+    actions.className = 'admin-list__actions'
+
+    var editBtn = document.createElement('button')
+    editBtn.type = 'button'
+    editBtn.className = 'admin-icon-btn'
+    editBtn.textContent = '✎'
+    editBtn.setAttribute('aria-label', 'Rename')
+    editBtn.addEventListener('click', function () {
+      startRenameSubcategory(sub, label)
+    })
+
+    var upBtn = document.createElement('button')
+    upBtn.type = 'button'
+    upBtn.className = 'admin-icon-btn'
+    upBtn.textContent = '↑'
+    upBtn.disabled = indexInGroup === 0
+    upBtn.setAttribute('aria-label', 'Move up')
+    upBtn.addEventListener('click', function () {
+      HopStore.reorderSubcategory(sub.id, -1)
+    })
+
+    var downBtn = document.createElement('button')
+    downBtn.type = 'button'
+    downBtn.className = 'admin-icon-btn'
+    downBtn.textContent = '↓'
+    downBtn.disabled = indexInGroup === siblingCount - 1
+    downBtn.setAttribute('aria-label', 'Move down')
+    downBtn.addEventListener('click', function () {
+      HopStore.reorderSubcategory(sub.id, 1)
+    })
+
+    var delBtn = document.createElement('button')
+    delBtn.type = 'button'
+    delBtn.className = 'admin-icon-btn admin-icon-btn--danger'
+    delBtn.textContent = '✕'
+    delBtn.setAttribute('aria-label', 'Delete')
+    delBtn.addEventListener('click', function () {
+      if (confirm('Delete "' + sub.name + '" and all its items?')) HopStore.deleteSubcategory(sub.id)
+    })
+
+    actions.appendChild(editBtn)
+    actions.appendChild(upBtn)
+    actions.appendChild(downBtn)
+    actions.appendChild(delBtn)
+
+    li.appendChild(nameWrap)
+    li.appendChild(actions)
+    return li
+  }
+
+  function buildSubcategoryPanel(cat) {
+    var panel = document.createElement('div')
+    panel.className = 'admin-subcat-panel'
+    panel.hidden = !expandedCategoryIds[cat.id]
+    if (!expandedCategoryIds[cat.id]) return panel
+
+    var subs = HopStore.getSubcategories(cat.id)
+    if (subs.length === 0) {
+      var hint = document.createElement('p')
+      hint.className = 'admin-panel__hint'
+      hint.style.margin = '0'
+      hint.textContent = 'No subcategories yet — add one below.'
+      panel.appendChild(hint)
+    } else {
+      var ul = document.createElement('ul')
+      ul.className = 'admin-list'
+      ul.style.margin = '0'
+      subs.forEach(function (sub, i) {
+        ul.appendChild(buildSubcategoryRow(sub, subs.length, i))
+      })
+      panel.appendChild(ul)
+    }
+
+    var form = document.createElement('form')
+    form.className = 'admin-panel__row'
+    var nameInput = document.createElement('input')
+    nameInput.className = 'admin-input'
+    nameInput.placeholder = 'New subcategory name'
+    var typeSelect = document.createElement('select')
+    typeSelect.className = 'admin-input'
+    ;[
+      ['video', 'Video'],
+      ['photo', 'Photo'],
+    ].forEach(function (pair) {
+      var opt = document.createElement('option')
+      opt.value = pair[0]
+      opt.textContent = pair[1]
+      typeSelect.appendChild(opt)
+    })
+    var addBtn = document.createElement('button')
+    addBtn.type = 'submit'
+    addBtn.className = 'admin-btn'
+    addBtn.textContent = 'Add subcategory'
+    form.appendChild(nameInput)
+    form.appendChild(typeSelect)
+    form.appendChild(addBtn)
+    form.addEventListener('submit', function (e) {
+      e.preventDefault()
+      if (!nameInput.value.trim()) return
+      HopStore.addSubcategory(cat.id, nameInput.value, typeSelect.value)
+    })
+    panel.appendChild(form)
+
+    return panel
+  }
+
   function renderCategories() {
     var categories = HopStore.getCategories()
-    var allReels = HopStore.getReels()
     categoryList.innerHTML = ''
 
     categories.forEach(function (cat, i) {
       var li = document.createElement('li')
       li.className = 'admin-list__row'
+      li.setAttribute('data-category-id', cat.id)
 
-      var count = allReels.filter(function (r) {
-        return r.categoryId === cat.id
-      }).length
+      var count = HopStore.getItemsByCategory(cat.id).length
 
       var label = document.createElement('button')
       label.type = 'button'
@@ -191,6 +309,16 @@
 
       var actions = document.createElement('div')
       actions.className = 'admin-list__actions'
+
+      var toggleBtn = document.createElement('button')
+      toggleBtn.type = 'button'
+      toggleBtn.className = 'admin-icon-btn'
+      toggleBtn.textContent = expandedCategoryIds[cat.id] ? '▾' : '▸'
+      toggleBtn.setAttribute('aria-label', expandedCategoryIds[cat.id] ? 'Collapse subcategories' : 'Expand subcategories')
+      toggleBtn.addEventListener('click', function () {
+        expandedCategoryIds[cat.id] = !expandedCategoryIds[cat.id]
+        renderCategories()
+      })
 
       var editBtn = document.createElement('button')
       editBtn.type = 'button'
@@ -227,9 +355,10 @@
       delBtn.textContent = '✕'
       delBtn.setAttribute('aria-label', 'Delete')
       delBtn.addEventListener('click', function () {
-        if (confirm('Delete "' + cat.name + '" and all its reels?')) HopStore.deleteCategory(cat.id)
+        if (confirm('Delete "' + cat.name + '" and all its subcategories and items?')) HopStore.deleteCategory(cat.id)
       })
 
+      actions.appendChild(toggleBtn)
       actions.appendChild(editBtn)
       actions.appendChild(upBtn)
       actions.appendChild(downBtn)
@@ -238,17 +367,66 @@
       li.appendChild(nameWrap)
       li.appendChild(actions)
       categoryList.appendChild(li)
+
+      var panelLi = document.createElement('li')
+      panelLi.appendChild(buildSubcategoryPanel(cat))
+      categoryList.appendChild(panelLi)
     })
   }
 
   categoryForm.addEventListener('submit', function (e) {
     e.preventDefault()
     if (!categoryNameInput.value.trim()) return
-    HopStore.addCategory(categoryNameInput.value)
+    var cat = HopStore.addCategory(categoryNameInput.value)
     categoryNameInput.value = ''
+    // Auto-expand the new category so its subcategory controls are right
+    // there — creating a category and adding subcategories to it is one
+    // continuous action, not two separate UI areas.
+    expandedCategoryIds[cat.id] = true
+    renderCategories()
+    var row = categoryList.querySelector('[data-category-id="' + cat.id + '"]')
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   })
 
-  // ---------- Reels ----------
+  // ---------- Items ----------
+
+  function populateSubcategorySelect(categoryId) {
+    var subs = HopStore.getSubcategories(categoryId)
+    var currentSub = reelSubcategoryInput.value
+    reelSubcategoryInput.innerHTML = ''
+
+    if (subs.length === 0) {
+      var opt = document.createElement('option')
+      opt.value = ''
+      opt.textContent = 'No subcategories — add one above'
+      opt.disabled = true
+      opt.selected = true
+      reelSubcategoryInput.appendChild(opt)
+      setItemFieldsDisabled(true)
+      return
+    }
+
+    subs.forEach(function (s) {
+      var opt = document.createElement('option')
+      opt.value = s.id
+      opt.textContent = s.name + ' (' + (s.type === 'photo' ? 'Photo' : 'Video') + ')'
+      reelSubcategoryInput.appendChild(opt)
+    })
+    if (subs.some(function (s) { return s.id === currentSub })) reelSubcategoryInput.value = currentSub
+
+    setItemFieldsDisabled(false)
+    var selected = subs.filter(function (s) { return s.id === reelSubcategoryInput.value })[0] || subs[0]
+    reelSubcategoryInput.value = selected.id
+    applyFormForSubcategory(selected)
+  }
+
+  function setItemFieldsDisabled(disabled) {
+    reelUrlInput.disabled = disabled
+    reelThumbFileInput.disabled = disabled
+    reelThumbInput.disabled = disabled
+    reelRatioInput.disabled = disabled
+    reelSubmitBtn.disabled = disabled
+  }
 
   function populateCategorySelects() {
     var categories = HopStore.getCategories()
@@ -271,6 +449,42 @@
 
     if (categories.some(function (c) { return c.id === currentFilter })) reelFilter.value = currentFilter
     if (categories.some(function (c) { return c.id === currentReelCat })) reelCategoryInput.value = currentReelCat
+
+    populateSubcategorySelect(reelCategoryInput.value)
+  }
+
+  reelCategoryInput.addEventListener('change', function () {
+    populateSubcategorySelect(this.value)
+  })
+
+  reelSubcategoryInput.addEventListener('change', function () {
+    var subcat = HopStore.getSubcategories(reelCategoryInput.value).filter(function (s) {
+      return s.id === reelSubcategoryInput.value
+    })[0]
+    applyFormForSubcategory(subcat)
+  })
+
+  // Rebuilds the ratio dropdown and field labels/hint for whichever
+  // subcategory is currently selected — its type gates which ratios are valid.
+  function applyFormForSubcategory(subcat) {
+    if (!subcat) return
+    var type = subcat.type
+
+    reelRatioInput.innerHTML = ''
+    HopUtils.RATIOS_BY_TYPE[type].forEach(function (r) {
+      var opt = document.createElement('option')
+      opt.value = r
+      opt.textContent = HopUtils.RATIO_LABELS[r]
+      reelRatioInput.appendChild(opt)
+    })
+
+    reelThumbLabel.textContent =
+      type === 'photo' ? 'Thumbnail image (required)' : 'Thumbnail image (optional — leave blank for a generated placeholder)'
+
+    reelFormHint.textContent =
+      type === 'photo'
+        ? 'Photo items are upload-first — the image is what shows in the grid. The link is optional.'
+        : 'Video items open the Link URL when clicked.'
   }
 
   // ---------- Thumbnail upload ----------
@@ -320,31 +534,7 @@
     setThumbStatus('')
   })
 
-  // Rebuilds the orientation dropdown and field labels/requiredness for
-  // whichever section (reel/post) the form is currently open for.
-  function applyFormSection(section) {
-    var config = SECTION_CONFIG[section]
-    reelFormSection.value = section
-
-    reelOrientationInput.innerHTML = ''
-    config.orientations.forEach(function (o) {
-      var opt = document.createElement('option')
-      opt.value = o
-      opt.textContent = ORIENTATION_LABELS[o]
-      reelOrientationInput.appendChild(opt)
-    })
-
-    reelUrlLabel.textContent = config.urlLabel
-    reelUrlInput.placeholder = config.urlPlaceholder
-    reelUrlInput.required = config.urlRequired
-
-    reelThumbLabel.textContent = config.thumbLabel
-
-    reelFormHint.textContent = config.hint
-    reelSubmitBtn.textContent = config.addLabel
-  }
-
-  function resetReelForm(section) {
+  function resetItemForm() {
     reelEditingId.value = ''
     reelTitleInput.value = ''
     reelUrlInput.value = ''
@@ -352,26 +542,35 @@
     reelThumbFileInput.value = ''
     updateThumbPreview('')
     setThumbStatus('')
-    applyFormSection(section)
+    reelSubmitBtn.textContent = 'Add item'
     if (reelFilter.value !== 'all') reelCategoryInput.value = reelFilter.value
+    populateSubcategorySelect(reelCategoryInput.value)
   }
 
-  function openNewItemForm(section) {
-    if (HopStore.getCategories().length === 0) {
-      alert('Add a category first before adding reels or posts.')
+  function openNewItemForm() {
+    var categories = HopStore.getCategories()
+    if (categories.length === 0) {
+      alert('Add a category first before adding items.')
       return
     }
-    resetReelForm(section)
+    if (HopStore.getSubcategories().length === 0) {
+      alert('Add a subcategory first — expand a category above and add one.')
+      return
+    }
+
+    var defaultCatId =
+      reelFilter.value !== 'all' && HopStore.getSubcategories(reelFilter.value).length > 0
+        ? reelFilter.value
+        : categories.filter(function (c) {
+            return HopStore.getSubcategories(c.id).length > 0
+          })[0].id
+
+    reelCategoryInput.value = defaultCatId
+    resetItemForm()
     reelForm.hidden = false
   }
 
-  newReelBtn.addEventListener('click', function () {
-    openNewItemForm('reel')
-  })
-
-  newPostBtn.addEventListener('click', function () {
-    openNewItemForm('post')
-  })
+  newItemBtn.addEventListener('click', openNewItemForm)
 
   reelCancelBtn.addEventListener('click', function () {
     reelForm.hidden = true
@@ -381,67 +580,79 @@
 
   reelForm.addEventListener('submit', function (e) {
     e.preventDefault()
-    var config = SECTION_CONFIG[reelFormSection.value] || SECTION_CONFIG.reel
+    var subcategoryId = reelSubcategoryInput.value
+    var subcat = HopStore.getSubcategories(reelCategoryInput.value).filter(function (s) {
+      return s.id === subcategoryId
+    })[0]
+    if (!subcategoryId || !subcat) return
+
     var payload = {
       title: reelTitleInput.value.trim(),
-      categoryId: reelCategoryInput.value,
-      instagramUrl: reelUrlInput.value.trim(),
+      subcategoryId: subcategoryId,
+      linkUrl: reelUrlInput.value.trim(),
       thumbnailUrl: reelThumbInput.value.trim(),
-      orientation: reelOrientationInput.value,
+      ratio: reelRatioInput.value,
     }
-    if (!payload.title || !payload.categoryId) return
-    if (config.urlRequired && !payload.instagramUrl) return
-    if (config.thumbRequired && !payload.thumbnailUrl) {
-      setThumbStatus('An image is required for posts.')
+    if (!payload.title) return
+    if (subcat.type === 'photo' && !payload.thumbnailUrl) {
+      setThumbStatus('An image is required for photo items.')
       return
     }
 
     if (reelEditingId.value) {
-      HopStore.updateReel(reelEditingId.value, payload)
+      HopStore.updateItem(reelEditingId.value, payload)
     } else {
-      HopStore.addReel(payload)
+      HopStore.addItem(payload)
     }
     reelForm.hidden = true
   })
 
-  function openReelEditForm(reel) {
-    var section = HopUtils.sectionOf(reel.orientation)
-    applyFormSection(section)
-    reelEditingId.value = reel.id
-    reelTitleInput.value = reel.title
-    reelCategoryInput.value = reel.categoryId
-    reelUrlInput.value = reel.instagramUrl
-    reelThumbInput.value = reel.thumbnailUrl
+  function openItemEditForm(item) {
+    var subcat = HopStore.getSubcategories().filter(function (s) {
+      return s.id === item.subcategoryId
+    })[0]
+    if (!subcat) return
+
+    reelEditingId.value = item.id
+    reelCategoryInput.value = subcat.categoryId
+    populateSubcategorySelect(subcat.categoryId)
+    reelSubcategoryInput.value = subcat.id
+    applyFormForSubcategory(subcat)
+
+    reelTitleInput.value = item.title
+    reelUrlInput.value = item.linkUrl
+    reelThumbInput.value = item.thumbnailUrl
     reelThumbFileInput.value = ''
-    updateThumbPreview(reel.thumbnailUrl)
+    updateThumbPreview(item.thumbnailUrl)
     setThumbStatus('')
-    reelOrientationInput.value = ORIENTATION_LABELS[reel.orientation] ? reel.orientation : section === 'post' ? 'square' : 'vertical'
+    reelRatioInput.value = HopUtils.normalizeRatio(item.ratio, subcat.type)
     reelSubmitBtn.textContent = 'Save changes'
     reelForm.hidden = false
   }
 
-  function buildReelRow(reel, categoryById, siblingCount, indexInGroup) {
+  function buildItemRow(item, subcatById, siblingCount, indexInGroup) {
     var li = document.createElement('li')
     li.className = 'admin-reel-row'
 
     var swatch = document.createElement('span')
     swatch.className = 'admin-reel-row__swatch'
-    if (reel.thumbnailUrl) {
-      swatch.style.backgroundImage = 'url(' + JSON.stringify(reel.thumbnailUrl).slice(1, -1) + ')'
+    if (item.thumbnailUrl) {
+      swatch.style.backgroundImage = 'url(' + JSON.stringify(item.thumbnailUrl).slice(1, -1) + ')'
     } else {
-      swatch.style.background = HopUtils.placeholderGradient(reel.id)
+      swatch.style.background = HopUtils.placeholderGradient(item.id)
     }
 
     var info = document.createElement('div')
     info.className = 'admin-reel-row__info'
     var title = document.createElement('span')
     title.className = 'admin-reel-row__title'
-    title.textContent = reel.title
+    title.textContent = item.title
     var meta = document.createElement('span')
     meta.className = 'admin-reel-row__meta'
-    var categoryName = categoryById[reel.categoryId] ? categoryById[reel.categoryId].name : 'Uncategorized'
-    var orientationLabel = ORIENTATION_LABELS[reel.orientation] || ORIENTATION_LABELS.vertical
-    meta.textContent = categoryName + ' · ' + orientationLabel
+    var subcat = subcatById[item.subcategoryId]
+    var subcatName = subcat ? subcat.name : 'Uncategorized'
+    var ratioLabel = HopUtils.RATIO_LABELS[item.ratio] || item.ratio
+    meta.textContent = subcatName + ' · ' + ratioLabel
     info.appendChild(title)
     info.appendChild(meta)
 
@@ -455,7 +666,7 @@
     upBtn.disabled = indexInGroup === 0
     upBtn.setAttribute('aria-label', 'Move up')
     upBtn.addEventListener('click', function () {
-      HopStore.reorderReel(reel.id, -1)
+      HopStore.reorderItem(item.id, -1)
     })
 
     var downBtn = document.createElement('button')
@@ -465,7 +676,7 @@
     downBtn.disabled = indexInGroup === siblingCount - 1
     downBtn.setAttribute('aria-label', 'Move down')
     downBtn.addEventListener('click', function () {
-      HopStore.reorderReel(reel.id, 1)
+      HopStore.reorderItem(item.id, 1)
     })
 
     var editBtn = document.createElement('button')
@@ -474,7 +685,7 @@
     editBtn.textContent = '✎'
     editBtn.setAttribute('aria-label', 'Edit')
     editBtn.addEventListener('click', function () {
-      openReelEditForm(reel)
+      openItemEditForm(item)
     })
 
     var delBtn = document.createElement('button')
@@ -483,7 +694,7 @@
     delBtn.textContent = '✕'
     delBtn.setAttribute('aria-label', 'Delete')
     delBtn.addEventListener('click', function () {
-      if (confirm('Delete "' + reel.title + '"?')) HopStore.deleteReel(reel.id)
+      if (confirm('Delete "' + item.title + '"?')) HopStore.deleteItem(item.id)
     })
 
     actions.appendChild(upBtn)
@@ -497,7 +708,7 @@
     return li
   }
 
-  function buildReelGroup(title, items, categoryById, emptyText) {
+  function buildItemGroup(title, items, subcatById, emptyText) {
     var group = document.createElement('div')
     group.className = 'admin-reel-group'
 
@@ -516,8 +727,8 @@
 
     var ul = document.createElement('ul')
     ul.className = 'admin-reel-list'
-    items.forEach(function (reel, i) {
-      ul.appendChild(buildReelRow(reel, categoryById, items.length, i))
+    items.forEach(function (item, i) {
+      ul.appendChild(buildItemRow(item, subcatById, items.length, i))
     })
     group.appendChild(ul)
     return group
@@ -525,65 +736,56 @@
 
   function renderReelList() {
     var categories = HopStore.getCategories()
-    var categoryById = {}
-    categories.forEach(function (c) {
-      categoryById[c.id] = c
+    var subcategories = HopStore.getSubcategories()
+    var subcatById = {}
+    subcategories.forEach(function (s) {
+      subcatById[s.id] = s
     })
 
     var filterId = reelFilter.value
     var query = reelSearchInput.value.trim().toLowerCase()
-    var items = HopStore.getReels(filterId === 'all' ? undefined : filterId)
+    var items = filterId === 'all' ? HopStore.getItems() : HopStore.getItemsByCategory(filterId)
     if (query) {
-      items = items.filter(function (r) {
-        return r.title.toLowerCase().indexOf(query) !== -1
+      items = items.filter(function (it) {
+        return it.title.toLowerCase().indexOf(query) !== -1
       })
     }
-
-    // Reorder buttons only make sense among siblings sharing a category —
-    // when "All categories" is selected, split further so up/down never
-    // jumps a reel/post between two different categories' running order.
-    var groupKey = filterId === 'all' ? function (r) { return r.categoryId } : function () { return 'all' }
-    var reelsByGroup = {}
-    var postsByGroup = {}
-    items.forEach(function (r) {
-      var key = groupKey(r)
-      var bucket = HopUtils.sectionOf(r.orientation) === 'post' ? postsByGroup : reelsByGroup
-      ;(bucket[key] = bucket[key] || []).push(r)
-    })
 
     reelListWrap.innerHTML = ''
 
     if (items.length === 0) {
       var hint = document.createElement('p')
       hint.className = 'admin-panel__hint'
-      hint.textContent = query ? 'No matches for "' + reelSearchInput.value.trim() + '".' : 'No reels or posts here yet.'
+      hint.textContent = query ? 'No matches for "' + reelSearchInput.value.trim() + '".' : 'No items here yet.'
       reelListWrap.appendChild(hint)
       return
     }
 
-    var reelsFlat = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'reel' })
-    var postsFlat = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'post' })
+    var categoriesToShow = filterId === 'all' ? categories : categories.filter(function (c) { return c.id === filterId })
 
-    if (filterId === 'all') {
-      // Group by category for readability when browsing everything at once.
-      categories.forEach(function (cat) {
-        var catReels = reelsByGroup[cat.id] || []
-        var catPosts = postsByGroup[cat.id] || []
-        if (catReels.length === 0 && catPosts.length === 0) return
+    categoriesToShow.forEach(function (cat) {
+      var catSubs = subcategories.filter(function (s) {
+        return s.categoryId === cat.id
+      })
+      if (catSubs.length === 0) return
 
+      if (filterId === 'all') {
         var catHeading = document.createElement('h3')
         catHeading.className = 'admin-reel-group__title'
         catHeading.textContent = cat.name
         catHeading.style.marginTop = '18px'
         reelListWrap.appendChild(catHeading)
+      }
 
-        reelListWrap.appendChild(buildReelGroup('Reels', catReels, categoryById, 'No reels yet.'))
-        reelListWrap.appendChild(buildReelGroup('Posts', catPosts, categoryById, 'No posts yet.'))
+      catSubs.forEach(function (sub) {
+        var subItems = items.filter(function (it) {
+          return it.subcategoryId === sub.id
+        })
+        if (filterId === 'all' && subItems.length === 0) return
+        var groupTitle = sub.name + ' (' + (sub.type === 'photo' ? 'Photo' : 'Video') + ')'
+        reelListWrap.appendChild(buildItemGroup(groupTitle, subItems, subcatById, 'No items yet.'))
       })
-    } else {
-      reelListWrap.appendChild(buildReelGroup('Reels', reelsFlat, categoryById, 'No reels yet.'))
-      reelListWrap.appendChild(buildReelGroup('Posts', postsFlat, categoryById, 'No posts yet.'))
-    }
+    })
   }
 
   reelSearchInput.addEventListener('input', renderReelList)
@@ -631,6 +833,89 @@
   function showDataMessage(text) {
     dataMessage.textContent = text
     dataMessage.hidden = false
+  }
+
+  // ---------- Local development save ----------
+  // Writes the draft straight to data.json on disk via tools/dev-server.js's
+  // POST /__local-save__ endpoint — lets you see dashboard edits on the
+  // local homepage immediately, without a GitHub token or a real publish.
+  // Only offered when running on localhost/127.0.0.1: elsewhere (the real
+  // deployed site) that endpoint doesn't exist, since GitHub Pages serves
+  // static files only.
+
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    localSaveSection.hidden = false
+  }
+
+  function showLocalSaveMessage(text) {
+    localSaveMessage.textContent = text
+    localSaveMessage.hidden = false
+  }
+
+  // Guards against silently overwriting real content with an empty/near-empty
+  // draft (e.g. a browser whose local draft never got seeded from the live
+  // file) — compares against what's currently on disk first and asks for
+  // confirmation if this save would shrink the catalog.
+  function confirmIfShrinking(draftItemCount) {
+    return fetch('data.json?_=' + Date.now(), { cache: 'no-store' })
+      .then(function (res) {
+        return res.ok ? res.json() : null
+      })
+      .catch(function () {
+        return null
+      })
+      .then(function (live) {
+        var liveItemCount = live && Array.isArray(live.items) ? live.items.length : 0
+        if (liveItemCount > 0 && draftItemCount < liveItemCount) {
+          return confirm(
+            'The current data.json has ' + liveItemCount + ' item(s); your draft only has ' + draftItemCount +
+            '. Saving will replace it with the smaller draft — continue?'
+          )
+        }
+        return true
+      })
+  }
+
+  localSaveBtn.addEventListener('click', function () {
+    var draftItemCount = HopStore.getItems().length
+    localSaveBtn.disabled = true
+    showLocalSaveMessage('')
+    localSaveMessage.hidden = true
+
+    confirmIfShrinking(draftItemCount).then(function (proceed) {
+      if (!proceed) {
+        localSaveBtn.disabled = false
+        return
+      }
+      doLocalSave()
+    })
+  })
+
+  function doLocalSave() {
+    localSaveBtn.textContent = 'Saving…'
+
+    fetch('/__local-save__', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: HopStore.exportJson(),
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (text) {
+            throw new Error(text || 'HTTP ' + res.status)
+          })
+        }
+        showLocalSaveMessage('Saved — refresh the homepage tab to see it live.')
+      })
+      .catch(function (err) {
+        showLocalSaveMessage(
+          'Save failed: ' + err.message + '. Make sure the site is running via "node tools/dev-server.js", not Live Server or another static server.'
+        )
+      })
+      .then(function () {
+        localSaveBtn.disabled = false
+        localSaveBtn.textContent = 'Save to local data.json'
+      })
   }
 
   // ---------- Publish to GitHub ----------
@@ -710,4 +995,15 @@
   HopStore.subscribe(function () {
     if (!adminEl.hidden) renderAll()
   })
+
+  // Deliberately last: everything above (every listener, every var this
+  // depends on) must already be wired before rendering the dashboard for an
+  // already-authenticated session. Doing this any earlier means a rendering
+  // error here would abort the rest of the script — leaving every button
+  // and form on the page dead with no explanation.
+  if (sessionStorage.getItem(AUTH_KEY) === '1') {
+    showAdmin()
+  } else {
+    showGate()
+  }
 })()

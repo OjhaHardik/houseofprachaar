@@ -11,17 +11,12 @@
   var mobileNavLabel = document.getElementById('mobileNavLabel')
   var mobileNavPanel = document.getElementById('mobileNavPanel')
   var subnav = document.getElementById('subnav')
-  var subnavMobile = document.getElementById('subnavMobile')
   var categoryEmpty = document.getElementById('categoryEmpty')
   var gridEl = document.getElementById('grid')
   var yearLabel = document.getElementById('yearLabel')
 
   var activeCategoryId = null
-  var activeSection = 'reel'
-  var SECTIONS = [
-    { id: 'reel', label: 'Reels' },
-    { id: 'post', label: 'Posts' },
-  ]
+  var activeSubcategoryId = null
 
   yearLabel.textContent = '© ' + new Date().getFullYear() + ' House of Prachar'
 
@@ -30,7 +25,7 @@
   // "Publish" button writes to the repo — instead of reading localStorage,
   // so everyone always sees the same content (no per-browser drift).
 
-  var siteData = { categories: [], reels: [] }
+  var siteData = { categories: [], subcategories: [], items: [] }
 
   var dataReady = fetch(DATA_URL + '?_=' + Date.now(), { cache: 'no-store' })
     .then(function (res) {
@@ -41,8 +36,10 @@
       return HOP_SEED // offline, file://, or data.json missing — fall back to the bundled default
     })
     .then(function (data) {
-      siteData.categories = Array.isArray(data.categories) ? data.categories : []
-      siteData.reels = Array.isArray(data.reels) ? data.reels : []
+      var normalized = HopUtils.normalizeSiteData(data) || { categories: [], subcategories: [], items: [] }
+      siteData.categories = normalized.categories
+      siteData.subcategories = normalized.subcategories
+      siteData.items = normalized.items
       return siteData
     })
 
@@ -52,10 +49,20 @@
     })
   }
 
-  function getReels(categoryId) {
-    return siteData.reels
-      .filter(function (r) {
-        return r.categoryId === categoryId
+  function getSubcategories(categoryId) {
+    return siteData.subcategories
+      .filter(function (s) {
+        return s.categoryId === categoryId
+      })
+      .sort(function (a, b) {
+        return a.order - b.order
+      })
+  }
+
+  function getItems(subcategoryId) {
+    return siteData.items
+      .filter(function (it) {
+        return it.subcategoryId === subcategoryId
       })
       .sort(function (a, b) {
         return a.order - b.order
@@ -161,6 +168,7 @@
       btn.textContent = cat.name
       btn.addEventListener('click', function () {
         activeCategoryId = cat.id
+        activeSubcategoryId = null
         renderAll()
       })
       tabsEl.appendChild(btn)
@@ -190,6 +198,7 @@
       item.textContent = cat.name
       item.addEventListener('click', function () {
         activeCategoryId = cat.id
+        activeSubcategoryId = null
         closeMobileNav()
         renderAll()
       })
@@ -197,18 +206,18 @@
     })
   }
 
-  // Posts are static showcase images, not playable clips, so they skip the
-  // play-icon affordance reels get.
-  function reelCardMarkup(reel, isReel) {
-    var hasImage = Boolean(reel.thumbnailUrl)
+  // Photo items are static showcase images, not playable clips, so they skip
+  // the play-icon affordance video items get.
+  function itemCardMarkup(item, isVideo) {
+    var hasImage = Boolean(item.thumbnailUrl)
     var bg = hasImage
-      ? 'background-image:url(' + JSON.stringify(reel.thumbnailUrl).slice(1, -1) + ')'
-      : 'background:' + HopUtils.placeholderGradient(reel.id)
+      ? 'background-image:url(' + JSON.stringify(item.thumbnailUrl).slice(1, -1) + ')'
+      : 'background:' + HopUtils.placeholderGradient(item.id)
     return (
       '<div class="reel-card__thumb" style="' + bg + '">' +
       '<div class="reel-card__scrim"></div>' +
-      '<span class="reel-card__title">' + HopUtils.escapeHtml(reel.title) + '</span>' +
-      (isReel
+      '<span class="reel-card__title">' + HopUtils.escapeHtml(item.title) + '</span>' +
+      (isVideo
         ? '<span class="reel-card__play" aria-hidden="true">' +
           '<svg width="20" height="22" viewBox="0 0 20 22" fill="none"><path d="M1 1.5L18.5 11L1 20.5V1.5Z" fill="currentColor"/></svg>' +
           '</span>'
@@ -217,20 +226,19 @@
     )
   }
 
-  var ORIENTATION_CLASSES = { square: 1, portrait: 1, horizontal: 1 }
-
-  function renderGrid(gridEl, reels) {
+  function renderGrid(gridEl, items, subcategoryType) {
     gridEl.innerHTML = ''
-    reels.forEach(function (reel) {
-      var isReel = HopUtils.sectionOf(reel.orientation) === 'reel'
+    var isVideo = subcategoryType === 'video'
+    items.forEach(function (item) {
+      var meta = HopUtils.RATIO_META[item.ratio] || HopUtils.RATIO_META.vertical
       var card = document.createElement('button')
       card.type = 'button'
-      card.className = 'reel-card' + (ORIENTATION_CLASSES[reel.orientation] ? ' reel-card--' + reel.orientation : '')
-      card.setAttribute('aria-label', (isReel ? 'Watch reel: ' : 'View post: ') + reel.title + (reel.instagramUrl ? ' on Instagram' : ''))
-      card.innerHTML = reelCardMarkup(reel, isReel)
-      if (reel.instagramUrl) {
+      card.className = 'reel-card' + (meta.cardClass ? ' ' + meta.cardClass : '')
+      card.setAttribute('aria-label', (isVideo ? 'Watch: ' : 'View: ') + item.title)
+      card.innerHTML = itemCardMarkup(item, isVideo)
+      if (item.linkUrl) {
         card.addEventListener('click', function () {
-          window.open(reel.instagramUrl, '_blank', 'noopener,noreferrer')
+          window.open(item.linkUrl, '_blank', 'noopener,noreferrer')
         })
       } else {
         card.classList.add('reel-card--static')
@@ -239,60 +247,61 @@
     })
   }
 
-  // Left sidebar on desktop, horizontal pill row on mobile — same two
-  // buttons, driving which single grid (Reels or Posts) is showing. Both
-  // tabs always stay clickable, even at zero items — an empty tab shows an
-  // honest "nothing here yet" message instead of being disabled, which read
-  // as broken (grayed out, "not-allowed" cursor) rather than just empty.
-  function renderSubnav() {
-    function buildItem(section, tag) {
+  // Left sidebar at every width (categories collapse into the hamburger
+  // instead), listing the active category's actual subcategories — 0, 1, or
+  // many, not a fixed pair. A subcategory stays clickable even at zero
+  // items — an empty one shows an honest "nothing here yet" message instead
+  // of being disabled, which read as broken rather than just empty.
+  function renderSubnav(subcats) {
+    function buildItem(subcat) {
       var item = document.createElement('button')
       item.type = 'button'
       item.setAttribute('role', 'tab')
-      item.className = tag + (section.id === activeSection ? ' ' + tag + '--active' : '')
-      item.textContent = section.label
-      item.setAttribute('aria-selected', section.id === activeSection ? 'true' : 'false')
+      item.className = 'subnav__item' + (subcat.id === activeSubcategoryId ? ' subnav__item--active' : '')
+      item.textContent = subcat.name
+      item.setAttribute('aria-selected', subcat.id === activeSubcategoryId ? 'true' : 'false')
       item.addEventListener('click', function () {
-        activeSection = section.id
+        activeSubcategoryId = subcat.id
         renderContent(false)
       })
       return item
     }
 
     subnav.innerHTML = ''
-    subnavMobile.innerHTML = ''
-    SECTIONS.forEach(function (section) {
-      subnav.appendChild(buildItem(section, 'subnav__item'))
-      subnavMobile.appendChild(buildItem(section, 'subnav-mobile__item'))
+    subcats.forEach(function (subcat) {
+      subnav.appendChild(buildItem(subcat))
     })
   }
 
   // allowAutoSwitch is true only when arriving at a category fresh (initial
-  // load, or switching top-level category) — it steers you to a tab that
-  // has content instead of landing on an empty one. A deliberate click on
-  // the other tab (allowAutoSwitch = false) always honors that choice, even
-  // if it's empty.
+  // load, or switching top-level category) — it steers you to a subcategory
+  // that has content instead of landing on an empty one. A deliberate click
+  // on another subcategory (allowAutoSwitch = false) always honors that
+  // choice, even if it's empty.
   function renderContent(allowAutoSwitch) {
-    var items = getReels(activeCategoryId)
-    var counts = {
-      reel: items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'reel' }).length,
-      post: items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === 'post' }).length,
+    var subcats = getSubcategories(activeCategoryId)
+
+    if (subcats.length === 0) {
+      subnav.innerHTML = ''
+      gridEl.hidden = true
+      categoryEmpty.hidden = false
+      categoryEmpty.textContent = 'No subcategories yet in this category.'
+      return
     }
 
-    if (allowAutoSwitch && counts[activeSection] === 0 && counts[activeSection === 'reel' ? 'post' : 'reel'] > 0) {
-      activeSection = activeSection === 'reel' ? 'post' : 'reel'
+    if (allowAutoSwitch || !activeSubcategoryId || !subcats.some(function (s) { return s.id === activeSubcategoryId })) {
+      var withItems = subcats.filter(function (s) { return getItems(s.id).length > 0 })
+      activeSubcategoryId = (withItems[0] || subcats[0]).id
     }
 
-    renderSubnav()
+    renderSubnav(subcats)
 
-    var visible = items.filter(function (r) { return HopUtils.sectionOf(r.orientation) === activeSection })
-    var sectionLabel = activeSection === 'reel' ? 'reels' : 'posts'
+    var activeSubcat = subcats.filter(function (s) { return s.id === activeSubcategoryId })[0]
+    var visible = getItems(activeSubcategoryId)
     categoryEmpty.hidden = visible.length !== 0
-    categoryEmpty.textContent = items.length === 0
-      ? 'No reels or posts in this category yet.'
-      : 'No ' + sectionLabel + ' in this category yet.'
+    categoryEmpty.textContent = 'No items in "' + activeSubcat.name + '" yet.'
     gridEl.hidden = visible.length === 0
-    renderGrid(gridEl, visible)
+    renderGrid(gridEl, visible, activeSubcat.type)
   }
 
   function renderAll() {
@@ -300,7 +309,6 @@
     renderTabs(categories)
     if (categories.length === 0) {
       subnav.innerHTML = ''
-      subnavMobile.innerHTML = ''
       gridEl.hidden = true
       categoryEmpty.hidden = false
       categoryEmpty.textContent = 'No categories yet — add one from the dashboard.'

@@ -44,6 +44,7 @@ a {
 }
 
 .container {
+  width: 100%;
   max-width: var(--hop-container);
   margin: 0 auto;
   padding: 0 32px;
@@ -234,9 +235,18 @@ a {
 
 .portfolio {
   min-height: 100%;
+  display: flex;
+  flex-direction: column;
   padding-top: 8px;
   opacity: 0;
   animation: hop-fade 0.6s var(--hop-ease) forwards;
+}
+
+/* Pushes the footer to the bottom of the viewport on short pages instead of
+   leaving it floating right under the grid, while still flowing normally
+   once content grows past one screen. */
+.portfolio__main {
+  flex: 1 0 auto;
 }
 
 .portfolio[hidden] {
@@ -270,9 +280,12 @@ a {
 
 .portfolio__footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 0 40px;
+  gap: 10px 24px;
+  padding-top: 24px;
+  padding-bottom: 40px;
   border-top: 1px solid var(--hop-black-700);
 }
 
@@ -457,8 +470,8 @@ a {
   font-weight: 600;
 }
 
-/* ---------- Subnav (Reels / Posts) ----------
-   Left sidebar on desktop, matching the reference layout: a fixed 256px
+/* ---------- Subnav (subcategories) ----------
+   Left sidebar at every width, matching the reference layout: a fixed 256px
    column with a 40px gutter before the content, tracked uppercase labels,
    active = white + red underline, inactive = muted gray. */
 
@@ -505,42 +518,22 @@ a {
   border-bottom-color: var(--hop-red);
 }
 
-.subnav-mobile {
-  display: none;
-  gap: 10px;
-  margin: 20px 0 4px;
-}
-
+/* Below 640px the subnav stays a sidebar (categories collapse into the
+   hamburger up top instead) — just narrower, so Reels/Posts still reads as
+   "left column" rather than switching to a horizontal pill row. */
 @media (max-width: 640px) {
   .portfolio__body {
-    gap: 0;
+    gap: 16px;
   }
   .subnav {
-    display: none;
+    flex: 0 0 76px;
+    gap: 20px;
+    padding-top: 24px;
   }
-  .subnav-mobile {
-    display: flex;
+  .subnav__item {
+    font-size: 11px;
+    letter-spacing: 0.1em;
   }
-}
-
-.subnav-mobile__item {
-  background: var(--hop-black-800);
-  border: 1px solid var(--hop-black-700);
-  border-radius: 999px;
-  padding: 8px 18px;
-  color: var(--hop-white-300);
-  font-family: var(--hop-font-body);
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  transition: color 0.2s var(--hop-ease), border-color 0.2s var(--hop-ease), background 0.2s var(--hop-ease);
-}
-
-.subnav-mobile__item--active {
-  color: var(--hop-white);
-  border-color: var(--hop-red);
-  background: rgba(212, 44, 61, 0.12);
 }
 
 /* ---------- Reel grid ----------
@@ -628,6 +621,18 @@ a {
    their portrait/square neighbors in the same row. */
 .reel-card--horizontal {
   flex-basis: calc((100% - (var(--reel-cols) - 1) * var(--reel-gap)) / var(--reel-cols) * 2 + var(--reel-gap));
+}
+
+.reel-card--ratio-3-4 .reel-card__thumb {
+  aspect-ratio: 3 / 4;
+}
+
+.reel-card--ratio-5-4 .reel-card__thumb {
+  aspect-ratio: 5 / 4;
+}
+
+.reel-card--ratio-4-3 .reel-card__thumb {
+  aspect-ratio: 4 / 3;
 }
 
 @media (max-width: 560px) {

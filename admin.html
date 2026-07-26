@@ -58,16 +58,15 @@
         </form>
       </section>
 
-      <!-- Reels & Posts -->
+      <!-- Items -->
       <section class="admin-panel">
         <div class="admin-panel__row admin-panel__row--between">
-          <h2 class="admin-panel__title">Reels &amp; Posts</h2>
+          <h2 class="admin-panel__title">Items</h2>
           <div class="admin-panel__row">
             <select id="reelFilter" class="admin-input">
               <option value="all">All categories</option>
             </select>
-            <button id="newReelBtn" class="admin-btn" type="button">+ New Reel</button>
-            <button id="newPostBtn" class="admin-btn" type="button">+ New Post</button>
+            <button id="newItemBtn" class="admin-btn" type="button">+ New item</button>
           </div>
         </div>
 
@@ -80,7 +79,6 @@
 
         <form id="reelForm" class="admin-form" hidden>
           <input type="hidden" id="reelEditingId" value="" />
-          <input type="hidden" id="reelFormSection" value="reel" />
           <p id="reelFormHint" class="admin-panel__hint"></p>
           <label class="admin-field">
             <span>Title</span>
@@ -91,8 +89,12 @@
             <select id="reelCategoryInput" class="admin-input"></select>
           </label>
           <label class="admin-field">
-            <span id="reelUrlLabel">Instagram reel URL</span>
-            <input id="reelUrlInput" class="admin-input" placeholder="https://www.instagram.com/reel/..." />
+            <span>Subcategory</span>
+            <select id="reelSubcategoryInput" class="admin-input"></select>
+          </label>
+          <label class="admin-field">
+            <span>Link URL (Instagram, Google Drive, or a direct video link)</span>
+            <input id="reelUrlInput" class="admin-input" placeholder="https://..." />
           </label>
           <label class="admin-field">
             <span id="reelThumbLabel">Thumbnail image (optional — leave blank for a generated placeholder)</span>
@@ -110,16 +112,32 @@
             </div>
           </label>
           <label class="admin-field">
-            <span>Grid orientation</span>
-            <select id="reelOrientationInput" class="admin-input"></select>
+            <span>Ratio</span>
+            <select id="reelRatioInput" class="admin-input"></select>
           </label>
           <div class="admin-panel__row">
-            <button type="submit" id="reelSubmitBtn" class="admin-btn">Add reel</button>
+            <button type="submit" id="reelSubmitBtn" class="admin-btn">Add item</button>
             <button type="button" id="reelCancelBtn" class="admin-btn admin-btn--ghost">Cancel</button>
           </div>
         </form>
 
         <div id="reelListWrap"></div>
+      </section>
+
+      <!-- Local development save — only shown when running via
+           tools/dev-server.js on localhost/127.0.0.1, since that's the only
+           thing that can actually write to data.json on disk. -->
+      <section id="localSaveSection" class="admin-panel" hidden>
+        <h2 class="admin-panel__title">Local development</h2>
+        <p class="admin-panel__hint">
+          Writes your draft straight to <code>data.json</code> on disk, so the local homepage shows it
+          immediately — no GitHub involved. Only works when the site is served by
+          <code>node tools/dev-server.js</code> (see README).
+        </p>
+        <div class="admin-panel__row">
+          <button id="localSaveBtn" class="admin-btn" type="button">Save to local data.json</button>
+        </div>
+        <span id="localSaveMessage" class="admin-panel__saved" hidden></span>
       </section>
 
       <!-- Publish -->
