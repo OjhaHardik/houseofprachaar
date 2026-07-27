@@ -225,6 +225,7 @@ a {
 }
 
 @media (max-width: 640px) {
+
   .hero__top,
   .hero__bottom {
     padding: 20px;
@@ -254,7 +255,7 @@ a {
 }
 
 .portfolio__header {
-  padding: 28px 0 12px;
+  padding: 28px 20px 12px;
 }
 
 .portfolio__logo {
@@ -443,6 +444,7 @@ a {
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -471,8 +473,8 @@ a {
 }
 
 /* ---------- Subnav (subcategories) ----------
-   Left sidebar at every width, matching the reference layout: a fixed 256px
-   column with a 40px gutter before the content, tracked uppercase labels,
+   Left sidebar at every width, sized to its own content (not a fixed
+   column) with a 40px gutter before the grid, tracked uppercase labels,
    active = white + red underline, inactive = muted gray. */
 
 .portfolio__body {
@@ -486,8 +488,12 @@ a {
   min-width: 0;
 }
 
+/* Shrink-to-fit (not a fixed 256px column) so the sidebar hugs whatever its
+   longest label actually is — a short label like "Reels" shouldn't leave a
+   few hundred extra px of dead space before the grid starts. The gap to the
+   content is set below on .portfolio__body. */
 .subnav {
-  flex: 0 0 256px;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -525,11 +531,13 @@ a {
   .portfolio__body {
     gap: 16px;
   }
+
   .subnav {
     flex: 0 0 76px;
     gap: 20px;
     padding-top: 24px;
   }
+
   .subnav__item {
     font-size: 11px;
     letter-spacing: 0.1em;
@@ -543,7 +551,7 @@ a {
    left with a dead empty column, and it works the same at any card count. */
 
 .reel-grid {
-  --reel-cols: 3;
+  --reel-cols: 4;
   --reel-gap: 30px;
   display: none;
   flex-wrap: wrap;
@@ -617,10 +625,12 @@ a {
   aspect-ratio: 16 / 9;
 }
 
-/* Horizontal reels get double width so they read at a comparable height to
-   their portrait/square neighbors in the same row. */
+/* Horizontal reels are wide (16:9), so they get a fixed half-row width
+   instead of scaling off --reel-cols — that fits exactly 2 side by side
+   whenever there's room, rather than 1 card eating 2 of 3 columns and
+   leaving the last third empty. */
 .reel-card--horizontal {
-  flex-basis: calc((100% - (var(--reel-cols) - 1) * var(--reel-gap)) / var(--reel-cols) * 2 + var(--reel-gap));
+  flex-basis: calc((100% - var(--reel-gap)) / 2);
 }
 
 .reel-card--ratio-3-4 .reel-card__thumb {
