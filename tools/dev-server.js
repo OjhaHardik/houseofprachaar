@@ -1,11 +1,14 @@
 // Local development server for House of Prachar.
 //
 // Serves this repo as static files (same as Live Server / `python -m
-// http.server`) AND adds one extra thing neither of those can do: a
-// POST /__local-save__ endpoint that writes the dashboard's draft straight
-// to data.json on disk. That's what lets the "Save to local data.json"
-// button in admin.html show your edits on the local homepage immediately,
-// without going through GitHub.
+// http.server`) AND adds two things neither of those can do:
+//   - POST /__local-save__   writes the dashboard's draft straight to
+//     data.json on disk, so "Save to local data.json" shows edits on the
+//     local homepage immediately, without going through GitHub.
+//   - POST /__upload-asset__ writes an uploaded thumbnail image to
+//     assets/uploads/ as a real file and returns its path, instead of the
+//     dashboard embedding it as base64 text inside data.json/localStorage
+//     (which is what blew past the browser's storage quota before).
 //
 // Usage:  node tools/dev-server.js [port]      (default port 5503)
 //
@@ -21,6 +24,7 @@ var url = require('url')
 var ROOT = path.resolve(__dirname, '..')
 var DATA_FILE = path.join(ROOT, 'data.json')
 var BACKUP_FILE = path.join(ROOT, 'data.json.bak')
+var UPLOADS_DIR = path.join(ROOT, 'assets', 'uploads')
 var PORT = Number(process.argv[2]) || 5503
 
 var MIME_TYPES = {
@@ -105,11 +109,65 @@ function handleLocalSave(req, res) {
   })
 }
 
+var EXT_BY_MIME = { jpeg: 'jpg', png: 'png', gif: 'gif', webp: 'webp', svg: 'svg' }
+
+// Writes an uploaded thumbnail to assets/uploads/ as a real file, instead of
+// it living as base64 text inside data.json/localStorage — that's what was
+// bloating the draft past the browser's storage quota. The filename is
+// always generated here, never taken from the client, so there's no path
+// traversal or collision risk to worry about.
+function handleUploadAsset(req, res) {
+  var chunks = []
+  req.on('data', function (chunk) {
+    chunks.push(chunk)
+  })
+  req.on('end', function () {
+    var body = Buffer.concat(chunks).toString('utf8')
+    var parsed
+    try {
+      parsed = JSON.parse(body)
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' })
+      res.end('Invalid JSON: ' + e.message)
+      return
+    }
+
+    var match = typeof parsed.dataUrl === 'string' && /^data:image\/(\w+);base64,(.+)$/.exec(parsed.dataUrl)
+    if (!match) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' })
+      res.end('Expected a data:image/... URL.')
+      return
+    }
+
+    var ext = EXT_BY_MIME[match[1]] || match[1]
+    var filename = 'thumb-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext
+    var filePath = path.join(UPLOADS_DIR, filename)
+
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true })
+    fs.writeFile(filePath, Buffer.from(match[2], 'base64'), function (err) {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' })
+        res.end('Could not write asset: ' + err.message)
+        return
+      }
+      var relativePath = 'assets/uploads/' + filename
+      console.log('Saved uploaded image to ' + relativePath)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ ok: true, path: relativePath }))
+    })
+  })
+}
+
 var server = http.createServer(function (req, res) {
   var pathname = url.parse(req.url).pathname
 
   if (req.method === 'POST' && pathname === '/__local-save__') {
     handleLocalSave(req, res)
+    return
+  }
+
+  if (req.method === 'POST' && pathname === '/__upload-asset__') {
+    handleUploadAsset(req, res)
     return
   }
 

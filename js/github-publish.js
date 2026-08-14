@@ -22,8 +22,8 @@ var HopPublish = (function () {
     return Boolean(getToken())
   }
 
-  function contentsUrl() {
-    return 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/' + FILE_PATH
+  function contentsUrl(path) {
+    return 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/' + path
   }
 
   function pagesUrl() {
@@ -57,15 +57,19 @@ var HopPublish = (function () {
       })
   }
 
-  // Resolves { ok: true, url } on success, or rejects with an Error whose
-  // message is safe to show directly to the admin.
-  function publish(jsonString, commitMessage) {
+  // Shared GET-sha-then-PUT logic behind both publish() and uploadAsset() —
+  // committing an image file to the repo is the exact same Contents API
+  // shape as committing data.json, just a different path and (already)
+  // base64-encoded binary content instead of base64-encoded JSON text.
+  // Resolves { ok: true, path, commitUrl } on success, or rejects with an
+  // Error whose message is safe to show directly to the admin.
+  function putFile(filePath, base64Content, commitMessage) {
     var token = getToken()
     if (!token) return Promise.reject(new Error('No GitHub token saved yet — add one below first.'))
 
-    return fetch(contentsUrl() + '?ref=' + BRANCH, { headers: authHeaders(token) })
+    return fetch(contentsUrl(filePath) + '?ref=' + BRANCH, { headers: authHeaders(token) })
       .then(function (res) {
-        if (res.status === 404) return null // data.json doesn't exist in the repo yet
+        if (res.status === 404) return null // file doesn't exist in the repo yet
         if (res.status === 401) throw new Error('GitHub rejected the token (unauthorized). Generate a new one.')
         if (res.status === 403) throw new Error('Token doesn’t have write access to this repo’s contents.')
         if (!res.ok) return readErrorMessage(res).then(function (msg) { throw new Error(msg) })
@@ -73,13 +77,13 @@ var HopPublish = (function () {
       })
       .then(function (existing) {
         var body = {
-          message: commitMessage || 'Publish content update from dashboard',
-          content: base64EncodeUtf8(jsonString),
+          message: commitMessage,
+          content: base64Content,
           branch: BRANCH,
         }
         if (existing && existing.sha) body.sha = existing.sha
 
-        return fetch(contentsUrl(), {
+        return fetch(contentsUrl(filePath), {
           method: 'PUT',
           headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders(token)),
           body: JSON.stringify(body),
@@ -90,8 +94,24 @@ var HopPublish = (function () {
         return res.json()
       })
       .then(function (result) {
-        return { ok: true, commitUrl: result && result.commit ? result.commit.html_url : repoUrl() }
+        return { ok: true, path: filePath, commitUrl: result && result.commit ? result.commit.html_url : repoUrl() }
       })
+  }
+
+  function publish(jsonString, commitMessage) {
+    return putFile(FILE_PATH, base64EncodeUtf8(jsonString), commitMessage || 'Publish content update from dashboard')
+  }
+
+  // dataUrl is exactly what HopUtils.fileToCompressedDataUrl() produced —
+  // its payload (everything after the comma) is already correctly
+  // base64-encoded binary, so it's used as-is; base64EncodeUtf8 is text-only
+  // and would mis-encode it.
+  function uploadAsset(dataUrl, commitMessage) {
+    var match = /^data:image\/(\w+);base64,(.+)$/.exec(dataUrl)
+    if (!match) return Promise.reject(new Error('Not a valid image data URL.'))
+    var ext = match[1] === 'jpeg' ? 'jpg' : match[1]
+    var filename = 'thumb-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext
+    return putFile('assets/uploads/' + filename, match[2], commitMessage || 'Upload thumbnail image')
   }
 
   return {
@@ -99,6 +119,7 @@ var HopPublish = (function () {
     setToken: setToken,
     hasToken: hasToken,
     publish: publish,
+    uploadAsset: uploadAsset,
     pagesUrl: pagesUrl,
     repoUrl: repoUrl,
   }

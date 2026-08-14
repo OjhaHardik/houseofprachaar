@@ -2,3 +2,4 @@
 Thumbs.db
 *.local
 data.json.bak
+data.json.pre-migration.bak

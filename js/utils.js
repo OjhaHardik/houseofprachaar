@@ -30,8 +30,8 @@ var HopUtils = (function () {
   // maxDimension) and re-encodes as JPEG, so thumbnails stay small enough to
   // comfortably live in localStorage instead of storing multi-MB originals.
   function fileToCompressedDataUrl(file, maxDimension, quality) {
-    maxDimension = maxDimension || 720
-    quality = quality || 0.82
+    maxDimension = maxDimension || 640
+    quality = quality || 0.75
     return new Promise(function (resolve, reject) {
       var reader = new FileReader()
       reader.onerror = function () {

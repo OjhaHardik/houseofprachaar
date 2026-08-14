@@ -74,7 +74,17 @@
     // what's actually live instead of the code's bundled placeholder seed.
     if (!HopStore.hasLocalData()) {
       HopStore.loadFromPublished()
-        .catch(function () {})
+        .catch(function (err) {
+          // Storage-full already got its own clear alert from the onError
+          // subscription below — don't stack a second one on top of it.
+          if (err.isStorageFull) return
+          alert(
+            'Could not load the published content into this browser (' + err.message + ').\n\n' +
+            'You\'re seeing placeholder demo content below, not your real site — do not edit or publish from here ' +
+            'until this is fixed, or you risk overwriting real content with demo content. Try reloading the page, ' +
+            'or check your connection.'
+          )
+        })
         .then(renderAll)
     } else {
       renderAll()
@@ -488,6 +498,17 @@
   }
 
   // ---------- Thumbnail upload ----------
+  // Uploaded images are stored as real files, not embedded as base64 text —
+  // that's what blew past the browser's storage quota before (see
+  // js/storage.js's onError handling). Where the file actually lands
+  // depends on what's available, tried in this order: the local dev server
+  // (tools/dev-server.js), a saved GitHub token (commits straight to the
+  // repo), or — only if neither exists — the old embed-as-data-URL
+  // behavior, with a clear warning instead of it happening invisibly.
+
+  function isLocalDevServer() {
+    return location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  }
 
   function setThumbStatus(text) {
     reelThumbStatus.textContent = text
@@ -506,16 +527,66 @@
     }
   }
 
+  function storeEmbedded(dataUrl) {
+    reelThumbInput.value = dataUrl
+    var approxKb = Math.round((dataUrl.length * 0.75) / 1024)
+    setThumbStatus(
+      'Warning: no local dev server or GitHub token available, so this image (~' + approxKb + ' KB) is being ' +
+      'embedded directly instead of saved as a file. This uses up storage faster — run the local dev server ' +
+      '("node tools/dev-server.js") or add a GitHub token to avoid this.'
+    )
+  }
+
+  function storeUploadedThumbnail(dataUrl) {
+    if (isLocalDevServer()) {
+      setThumbStatus('Saving to local assets/uploads…')
+      return fetch('/__upload-asset__', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl: dataUrl }),
+      })
+        .then(function (res) {
+          if (!res.ok) return res.text().then(function (text) { throw new Error(text || 'HTTP ' + res.status) })
+          return res.json()
+        })
+        .then(function (result) {
+          reelThumbInput.value = result.path
+          setThumbStatus('Saved as ' + result.path + '.')
+        })
+        .catch(function (err) {
+          setThumbStatus(
+            'Local upload failed (' + err.message + ') — make sure the site is running via ' +
+            '"node tools/dev-server.js", not Live Server. Falling back to an embedded image.'
+          )
+          storeEmbedded(dataUrl)
+        })
+    }
+
+    if (HopPublish.hasToken()) {
+      setThumbStatus('Committing image to GitHub…')
+      return HopPublish.uploadAsset(dataUrl, 'Upload thumbnail image')
+        .then(function (result) {
+          reelThumbInput.value = result.path
+          setThumbStatus('Committed as ' + result.path + '. Remember to Publish to make it live.')
+        })
+        .catch(function (err) {
+          setThumbStatus('GitHub upload failed (' + err.message + '). Falling back to an embedded image.')
+          storeEmbedded(dataUrl)
+        })
+    }
+
+    storeEmbedded(dataUrl)
+    return Promise.resolve()
+  }
+
   reelThumbFileInput.addEventListener('change', function () {
     var file = reelThumbFileInput.files && reelThumbFileInput.files[0]
     if (!file) return
     setThumbStatus('Processing image…')
     HopUtils.fileToCompressedDataUrl(file)
       .then(function (dataUrl) {
-        reelThumbInput.value = dataUrl
-        updateThumbPreview(dataUrl)
-        var approxKb = Math.round((dataUrl.length * 0.75) / 1024)
-        setThumbStatus('Image ready (~' + approxKb + ' KB).')
+        updateThumbPreview(dataUrl) // instant, doesn't wait on upload
+        return storeUploadedThumbnail(dataUrl)
       })
       .catch(function (err) {
         setThumbStatus(err.message)
@@ -843,7 +914,7 @@
   // deployed site) that endpoint doesn't exist, since GitHub Pages serves
   // static files only.
 
-  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+  if (isLocalDevServer()) {
     localSaveSection.hidden = false
   }
 
@@ -994,6 +1065,21 @@
 
   HopStore.subscribe(function () {
     if (!adminEl.hidden) renderAll()
+  })
+
+  // Fires whenever a save to this browser's storage fails — almost always
+  // the quota being full, since every thumbnail image lives as base64 text
+  // inside the one localStorage entry. Without this the edit just silently
+  // didn't happen, with no indication why, which is what made this look
+  // like "random" behavior that varied by device.
+  HopStore.onError(function (err) {
+    alert(
+      'That change was NOT saved — this browser\'s storage is full ' +
+      '(' + err.message + ').\n\n' +
+      'This is caused by the total size of all your thumbnail images. To fix it: delete a few older/unused items, ' +
+      'or use smaller images, then try again. Reloading this page will show your last successfully-saved state, ' +
+      'not what you just tried to do.'
+    )
   })
 
   // Deliberately last: everything above (every listener, every var this

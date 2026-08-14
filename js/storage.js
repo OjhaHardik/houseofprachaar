@@ -4,6 +4,7 @@ var HopStore = (function () {
   var DEFAULT_PASSCODE = 'prachar2026'
 
   var listeners = []
+  var errorListeners = []
 
   function notify() {
     for (var i = 0; i < listeners.length; i++) listeners[i]()
@@ -15,6 +16,20 @@ var HopStore = (function () {
       var idx = listeners.indexOf(fn)
       if (idx !== -1) listeners.splice(idx, 1)
     }
+  }
+
+  // Fires when a write to localStorage fails — almost always the browser's
+  // per-origin storage quota (commonly ~5MB, often less on mobile), since
+  // the whole draft — including every thumbnail as base64 text — lives in
+  // one localStorage entry. Without this, a failed write used to throw
+  // uncaught out of whatever button triggered it: the edit silently didn't
+  // save, with no indication why, on some devices and not others.
+  function onError(fn) {
+    errorListeners.push(fn)
+  }
+
+  function notifyError(err) {
+    for (var i = 0; i < errorListeners.length; i++) errorListeners[i](err)
   }
 
   function clone(obj) {
@@ -55,14 +70,34 @@ var HopStore = (function () {
       .then(function (data) {
         var normalized = HopUtils.normalizeSiteData(data)
         if (!normalized) throw new Error('data.json has an unexpected shape')
-        write(normalized)
+        if (!write(normalized)) {
+          // write() already fired onError with the storage-full detail —
+          // this flag lets callers avoid stacking a second, redundant alert
+          // on top of that for this specific failure reason.
+          var err = new Error('could not save to this browser\'s storage (likely full)')
+          err.isStorageFull = true
+          throw err
+        }
         return normalized
       })
   }
 
+  // Returns whether the write actually succeeded — callers that need to
+  // know (loadFromPublished, importJson) check this; callers that don't
+  // (every plain CRUD mutator) can ignore it, since notifyError already
+  // handles telling the user.
   function write(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    } catch (e) {
+      // Swallowed here (not re-thrown) so the button/form that triggered
+      // this doesn't blow up with an uncaught exception — notifyError lets
+      // the UI show what actually happened instead.
+      notifyError(e)
+      return false
+    }
     notify()
+    return true
   }
 
   function uid(prefix) {
@@ -357,7 +392,9 @@ var HopStore = (function () {
       if (!normalized) {
         return { ok: false, error: 'JSON must contain "categories"/"subcategories"/"items" (or legacy "categories"/"reels") arrays.' }
       }
-      write(normalized)
+      if (!write(normalized)) {
+        return { ok: false, error: 'could not save to this browser\'s storage (likely full)' }
+      }
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e.message || 'Invalid JSON' }
@@ -385,6 +422,7 @@ var HopStore = (function () {
 
   return {
     subscribe: subscribe,
+    onError: onError,
     getCategories: getCategories,
     addCategory: addCategory,
     renameCategory: renameCategory,
